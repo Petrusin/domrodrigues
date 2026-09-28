@@ -1,0 +1,1105 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#141416">
+<title>Dom Rodrigues · Agendamento</title>
+<meta name="description" content="Agende seu corte na Dom Rodrigues, unidades Curicica e Camorim.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>👑</text></svg>">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<script>
+tailwind.config = {
+  theme: { extend: {
+    fontFamily: { sans: ['Barlow', 'system-ui', 'sans-serif'], display: ['"Barlow Condensed"', 'Barlow', 'sans-serif'] },
+    colors: { ink: '#141416', panel: '#1c1c21', line: '#2d2d35', gold: '#d4af37', goldd: '#b3922d', cream: '#ece7dc', mute: '#8f8a80' }
+  } }
+};
+</script>
+<style>
+  :root { --row: 46px; }
+  html, body { background: #141416; color: #ece7dc; }
+  body { font-family: 'Barlow', system-ui, sans-serif; min-height: 100vh; padding-bottom: env(safe-area-inset-bottom); }
+  .font-display { font-family: 'Barlow Condensed', 'Barlow', sans-serif; letter-spacing: .01em; }
+  [data-screen] { display: none; }
+  [data-screen].on { display: block; }
+  :focus-visible { outline: 2px solid #d4af37; outline-offset: 2px; }
+  input, select { color-scheme: dark; }
+  .field { width: 100%; background: #1c1c21; border: 1px solid #2d2d35; border-radius: 12px; padding: 12px 14px; font-size: 16px; color: #ece7dc; }
+  .field:focus { outline: none; border-color: #d4af37; }
+  .label { display: block; font-size: 13px; color: #8f8a80; margin: 0 0 6px 2px; }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border-radius: 12px; font-weight: 600; padding: 13px 18px; transition: background .15s, opacity .15s; }
+  .btn-gold { background: #d4af37; color: #141416; }
+  .btn-gold:hover { background: #b3922d; }
+  .btn-ghost { background: transparent; border: 1px solid #2d2d35; color: #ece7dc; }
+  .btn-ghost:hover { border-color: #d4af37; }
+  .btn[disabled] { opacity: .45; pointer-events: none; }
+  .pick { width: 100%; text-align: left; background: #1c1c21; border: 1px solid #2d2d35; border-radius: 14px; padding: 16px; transition: border-color .15s; }
+  .pick:hover, .pick.sel { border-color: #d4af37; }
+  .chip { white-space: nowrap; border: 1px solid #2d2d35; border-radius: 999px; padding: 7px 14px; font-size: 14px; color: #cfc9bd; }
+  .chip.sel { background: #d4af37; border-color: #d4af37; color: #141416; font-weight: 600; }
+  .scroll-x { overflow-x: auto; scrollbar-width: none; }
+  .scroll-x::-webkit-scrollbar { display: none; }
+  .day { min-width: 58px; border: 1px solid #2d2d35; border-radius: 14px; padding: 8px 0; text-align: center; }
+  .day.sel { background: #d4af37; color: #141416; border-color: #d4af37; }
+  .day[disabled] { opacity: .35; }
+  .slot { border: 1px solid #2d2d35; border-radius: 10px; padding: 11px 0; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .slot:hover { border-color: #d4af37; }
+  .slot.off { color: #4a4a52; text-decoration: line-through; border-color: #222228; pointer-events: none; }
+  .num { font-variant-numeric: tabular-nums; }
+  #toast { transition: transform .25s, opacity .25s; }
+
+  /* Ticket do voucher: a borda serrilhada é o único ornamento do app, e marca dinheiro de verdade para o cliente */
+  .ticket { position: relative; background: #25231d; border: 1px dashed #d4af37; border-radius: 14px; padding: 14px 16px; }
+  .ticket::before, .ticket::after { content: ''; position: absolute; top: 50%; width: 16px; height: 16px; border-radius: 50%; background: #141416; border: 1px dashed #d4af37; transform: translateY(-50%); }
+  .ticket::before { left: -9px; clip-path: inset(0 0 0 50%); }
+  .ticket::after { right: -9px; clip-path: inset(0 50% 0 0); }
+
+  /* Agenda */
+  .agenda-grid { display: grid; gap: 0; position: relative; }
+  .ag-head { position: sticky; top: 0; z-index: 3; background: #141416; padding: 8px 10px 10px; border-bottom: 1px solid #2d2d35; font-family: 'Barlow Condensed', sans-serif; font-size: 20px; font-weight: 600; }
+  .ag-head span { display: block; font-family: 'Barlow', sans-serif; font-size: 12px; color: #8f8a80; font-weight: 500; }
+  .ag-corner { position: sticky; top: 0; left: 0; z-index: 4; background: #141416; border-bottom: 1px solid #2d2d35; }
+  .ag-time { position: sticky; left: 0; z-index: 2; background: #141416; font-size: 12px; color: #8f8a80; padding: 4px 8px 0 0; text-align: right; font-variant-numeric: tabular-nums; border-top: 1px solid #222228; }
+  .ag-free { border-top: 1px solid #222228; border-left: 1px solid #222228; color: transparent; font-size: 20px; }
+  .ag-free:hover { background: rgba(212,175,55,.08); color: #d4af37; }
+  .ag-free.past { background: repeating-linear-gradient(135deg, transparent 0 6px, rgba(255,255,255,.015) 6px 12px); }
+  .ag-item { margin: 2px 4px; border-radius: 10px; padding: 6px 9px; text-align: left; overflow: hidden; border-left: 4px solid #d4af37; background: #25231d; z-index: 1; }
+  .ag-item.st-done { border-left-color: #5c9b6b; background: #1b241e; }
+  .ag-item.st-miss { border-left-color: #c2554d; background: #2a1c1b; }
+  .ag-item.st-late { border-left-color: #e0a340; }
+  .ag-item.block { border-left-color: #55555f; background: repeating-linear-gradient(135deg, #1e1e23 0 8px, #232329 8px 16px); color: #9a978f; }
+  .tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .tbl th { text-align: right; font-weight: 500; color: #8f8a80; padding: 6px 8px; border-bottom: 1px solid #2d2d35; white-space: nowrap; }
+  .tbl td { text-align: right; padding: 8px; border-bottom: 1px solid #222228; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .tbl th:first-child, .tbl td:first-child { text-align: left; }
+  .tbl tr.sum td { font-weight: 600; border-bottom: 1px solid #2d2d35; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+<!-- ============ CARREGANDO ============ -->
+<section data-screen="loading" class="on">
+  <div class="min-h-screen flex flex-col items-center justify-center gap-4 p-8 text-center">
+    <i class="fa-solid fa-crown text-gold text-3xl"></i>
+    <p id="loading-msg" class="text-mute">Abrindo a agenda…</p>
+    <button id="btn-retry" hidden onclick="boot()" class="btn btn-ghost">Tentar de novo</button>
+  </div>
+</section>
+
+<!-- ============ LOGIN ============ -->
+<section data-screen="login">
+  <div class="min-h-screen max-w-md mx-auto px-6 py-10 flex flex-col">
+    <div class="my-auto">
+      <div class="mb-10">
+        <div class="w-14 h-14 rounded-2xl bg-gold text-ink flex items-center justify-center text-2xl mb-5"><i class="fa-solid fa-crown"></i></div>
+        <h1 class="font-display text-5xl font-bold leading-none">Dom Rodrigues</h1>
+        <p class="text-mute mt-2">Clube e agendamento em Curicica e Camorim</p>
+      </div>
+      <div class="space-y-4">
+        <div><label class="label" for="login-email">E-mail</label><input id="login-email" type="email" autocomplete="email" class="field" placeholder="seu@email.com"></div>
+        <div>
+          <div class="flex justify-between items-baseline"><label class="label" for="login-password">Senha</label><button onclick="show('forgot')" class="text-sm text-gold">Esqueci a senha</button></div>
+          <div class="relative"><input id="login-password" type="password" autocomplete="current-password" class="field pr-11" placeholder="Sua senha" onkeydown="if(event.key==='Enter')doLogin()"><button type="button" onclick="togglePass('login-password',this)" class="absolute right-3 top-1/2 -translate-y-1/2 text-mute p-1" aria-label="Mostrar senha"><i class="fa-solid fa-eye"></i></button></div>
+        </div>
+        <button id="btn-login" onclick="doLogin()" class="btn btn-gold w-full">Entrar</button>
+        <button onclick="openRegister()" class="btn btn-ghost w-full">Criar conta</button>
+      </div>
+    </div>
+    <a data-wa-shop class="mt-10 text-center text-sm text-mute" target="_blank" rel="noopener"><i class="fa-brands fa-whatsapp text-green-400"></i> Dúvidas? Fale no WhatsApp</a>
+  </div>
+</section>
+
+<!-- ============ ESQUECI A SENHA ============ -->
+<section data-screen="forgot">
+  <div class="max-w-md mx-auto px-6 py-6">
+    <button onclick="show('login')" class="text-mute mb-6"><i class="fa-solid fa-arrow-left"></i> Voltar</button>
+    <h2 class="font-display text-4xl font-bold mb-2">Nova senha</h2>
+    <p class="text-mute mb-6">Confirme seu e-mail e a data de nascimento do cadastro. Barbeiros: peçam a senha nova ao gestor.</p>
+    <div class="space-y-4">
+      <div><label class="label" for="fg-email">E-mail</label><input id="fg-email" type="email" class="field"></div>
+      <div><label class="label" for="fg-birth">Data de nascimento</label><input id="fg-birth" type="date" class="field"></div>
+      <div><label class="label" for="fg-pass">Nova senha</label><input id="fg-pass" type="password" class="field" placeholder="Mínimo 6 caracteres"></div>
+      <button id="btn-forgot" onclick="doReset()" class="btn btn-gold w-full">Salvar nova senha</button>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CADASTRO ============ -->
+<section data-screen="register">
+  <div class="max-w-md mx-auto px-6 py-6 pb-12">
+    <button onclick="show('login')" class="text-mute mb-6"><i class="fa-solid fa-arrow-left"></i> Voltar</button>
+    <h2 class="font-display text-4xl font-bold mb-1">Criar conta</h2>
+    <p class="text-mute mb-6">Leva um minuto. Depois é só escolher o horário.</p>
+    <div id="rg-ref-banner" hidden class="ticket mb-6"></div>
+    <div class="space-y-4">
+      <div><label class="label" for="rg-name">Nome completo</label><input id="rg-name" class="field" autocomplete="name"></div>
+      <div><label class="label" for="rg-phone">WhatsApp com DDD</label><input id="rg-phone" type="tel" inputmode="numeric" class="field" placeholder="21 99999-9999" autocomplete="tel"></div>
+      <div><label class="label" for="rg-email">E-mail</label><input id="rg-email" type="email" class="field" autocomplete="email"></div>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="label" for="rg-birth">Nascimento</label><input id="rg-birth" type="date" class="field"></div>
+        <div><label class="label" for="rg-marital">Estado civil</label>
+          <select id="rg-marital" class="field"><option value="">Prefiro não dizer</option><option>Solteiro(a)</option><option>Casado(a)</option><option>União estável</option><option>Divorciado(a)</option><option>Viúvo(a)</option></select></div>
+      </div>
+      <div><label class="label" for="rg-hood">Bairro onde mora</label>
+        <select id="rg-hood" class="field"><option>Curicica</option><option>Camorim</option><option>Anil</option><option>Freguesia / Taquara</option><option>Jacarepaguá (outros)</option><option>Barra / Recreio</option><option>Outro</option></select></div>
+      <div id="rg-ref-wrap"><label class="label" for="rg-ref">Código de quem te indicou (opcional)</label><input id="rg-ref" class="field uppercase tracking-wider" autocapitalize="characters" placeholder="Ex: JOAO7K2" onchange="previewRef(this.value)"></div>
+
+      <fieldset>
+        <legend class="label">Como você quer usar</legend>
+        <div class="space-y-2">
+          <label class="pick flex gap-3 items-start cursor-pointer"><input type="radio" name="rg-plan" value="avulso" checked class="mt-1 accent-[#d4af37]"><span><b class="block">Avulso</b><span class="text-sm text-mute">Paga cada serviço no dia.</span></span></label>
+          <label class="pick flex gap-3 items-start cursor-pointer"><input type="radio" name="rg-plan" value="vip" class="mt-1 accent-[#d4af37]"><span><b class="block">Clube VIP <span data-vip-price class="text-gold"></span> por 30 dias</b><span class="text-sm text-mute">Cabelo e barba inclusos. Você paga no balcão e o VIP vale 30 dias a partir do pagamento.</span></span></label>
+        </div>
+      </fieldset>
+
+      <div><label class="label" for="rg-pass">Senha</label>
+        <div class="relative"><input id="rg-pass" type="password" class="field pr-11" placeholder="Mínimo 6 caracteres" autocomplete="new-password"><button type="button" onclick="togglePass('rg-pass',this)" class="absolute right-3 top-1/2 -translate-y-1/2 text-mute p-1" aria-label="Mostrar senha"><i class="fa-solid fa-eye"></i></button></div></div>
+
+      <label class="flex gap-3 items-start text-sm cursor-pointer"><input id="rg-mkt" type="checkbox" class="mt-1 w-4 h-4 accent-[#d4af37]"><span>Quero receber promoções, novidades e mimo de aniversário pelo WhatsApp e e-mail.</span></label>
+      <p class="text-xs text-mute">Seus dados ficam só com a Dom Rodrigues e são usados para seus agendamentos e, se você autorizar acima, para ofertas. Você pode pedir a exclusão a qualquer momento pelo WhatsApp.</p>
+
+      <button id="btn-register" onclick="doRegister()" class="btn btn-gold w-full">Criar conta</button>
+    </div>
+  </div>
+</section>
+
+<!-- ============ HOME DO CLIENTE ============ -->
+<section data-screen="home">
+  <div class="max-w-md mx-auto px-5 pt-5 pb-16">
+    <header class="flex items-center justify-between mb-6">
+      <div class="flex items-center gap-2 text-gold"><i class="fa-solid fa-crown"></i><span class="font-display text-xl font-semibold text-cream">Dom Rodrigues</span></div>
+      <div class="flex items-center gap-1">
+        <button id="btn-to-admin" hidden onclick="goStaff()" class="btn btn-ghost !py-2 !px-3 text-sm">Painel master</button>
+        <button onclick="openPassword()" class="p-2 text-mute" aria-label="Trocar senha"><i class="fa-solid fa-key"></i></button>
+        <button onclick="logout()" class="p-2 text-mute" aria-label="Sair"><i class="fa-solid fa-right-from-bracket"></i></button>
+      </div>
+    </header>
+
+    <h2 class="font-display text-4xl font-bold leading-tight" id="home-hello"></h2>
+    <div id="vip-card" class="mt-4"></div>
+    <div id="my-vouchers" class="mt-4 space-y-3"></div>
+
+    <button onclick="startBooking()" class="btn btn-gold w-full mt-5 !py-4 text-lg"><i class="fa-solid fa-scissors"></i> Agendar horário</button>
+
+    <h3 class="font-display text-2xl font-semibold mt-9 mb-3">Próximos horários</h3>
+    <div id="my-upcoming" class="space-y-3"></div>
+
+    <div id="refer-card" hidden class="rounded-2xl bg-panel border border-line p-5 mt-9"></div>
+
+    <details id="my-history-wrap" class="mt-8" hidden>
+      <summary class="cursor-pointer text-mute">Histórico</summary>
+      <div id="my-history" class="mt-3 space-y-2"></div>
+    </details>
+
+    <a data-wa-shop target="_blank" rel="noopener" class="btn btn-ghost w-full mt-10"><i class="fa-brands fa-whatsapp text-green-400"></i> Falar com a barbearia</a>
+  </div>
+</section>
+
+<!-- ============ FLUXO DE AGENDAMENTO ============ -->
+<section data-screen="book">
+  <div class="max-w-md mx-auto px-5 pt-5 pb-32">
+    <div class="flex items-center justify-between mb-5">
+      <button onclick="bkBack()" class="text-mute"><i class="fa-solid fa-arrow-left"></i> Voltar</button>
+      <span id="bk-progress" class="text-sm text-mute"></span>
+    </div>
+    <h2 id="bk-title" class="font-display text-4xl font-bold mb-5"></h2>
+    <div id="bk-body"></div>
+  </div>
+  <div id="bk-footer" class="fixed bottom-0 inset-x-0 bg-ink/95 border-t border-line p-4" hidden>
+    <div class="max-w-md mx-auto"><button id="bk-next" class="btn btn-gold w-full"></button></div>
+  </div>
+</section>
+
+<!-- ============ SUCESSO ============ -->
+<section data-screen="success">
+  <div class="max-w-md mx-auto px-6 py-12">
+    <div class="w-16 h-16 rounded-full bg-gold text-ink flex items-center justify-center text-3xl mb-6"><i class="fa-solid fa-check"></i></div>
+    <h2 class="font-display text-5xl font-bold leading-none mb-3">Horário marcado</h2>
+    <div id="ok-details" class="text-lg mb-8"></div>
+    <div class="space-y-3">
+      <a id="ok-gcal" target="_blank" rel="noopener" class="btn btn-ghost w-full"><i class="fa-regular fa-calendar-plus"></i> Adicionar à minha agenda</a>
+      <a id="ok-wa" target="_blank" rel="noopener" class="btn btn-ghost w-full"><i class="fa-brands fa-whatsapp text-green-400"></i> Enviar para a barbearia</a>
+      <button onclick="goHome()" class="btn btn-gold w-full">Voltar ao início</button>
+    </div>
+  </div>
+</section>
+
+<!-- ============ PAINEL DA EQUIPE (master e barbeiro) ============ -->
+<section data-screen="staff">
+  <div class="max-w-6xl mx-auto px-4 pt-4 pb-16">
+    <header class="flex flex-wrap items-center justify-between gap-3 mb-4">
+      <div>
+        <div class="flex items-center gap-2"><i class="fa-solid fa-crown text-gold"></i><span id="st-title" class="font-display text-2xl font-semibold"></span></div>
+        <p id="st-sub" class="text-sm text-mute"></p>
+      </div>
+      <div class="flex items-center gap-2">
+        <a id="st-dash" hidden href="dashboard.html" target="_blank" rel="noopener" class="btn btn-gold !py-2 !px-3 text-sm"><i class="fa-solid fa-chart-column"></i> Dashboard completo</a>
+        <button id="st-client" hidden onclick="goHome()" class="btn btn-ghost !py-2 !px-3 text-sm">Modo cliente</button>
+        <button onclick="openPassword()" class="p-2 text-mute" aria-label="Trocar senha"><i class="fa-solid fa-key"></i></button>
+        <button onclick="logout()" class="p-2 text-mute" aria-label="Sair"><i class="fa-solid fa-right-from-bracket"></i></button>
+      </div>
+    </header>
+
+    <nav id="st-nav" class="flex gap-2 mb-5 scroll-x" role="tablist">
+      <button data-tab="agenda" onclick="stTab('agenda')" class="chip sel"><i class="fa-regular fa-calendar"></i> Agenda</button>
+      <button data-tab="cash" onclick="stTab('cash')" class="chip"><i class="fa-solid fa-cash-register"></i> Caixa do dia</button>
+      <button data-tab="clients" onclick="stTab('clients')" class="chip"><i class="fa-regular fa-user"></i> Clientes</button>
+    </nav>
+
+    <!-- Barra de data (agenda e caixa) -->
+    <div id="st-datebar" class="flex flex-wrap items-center gap-2 mb-3">
+      <button onclick="admShift(-1)" class="btn btn-ghost !p-2.5" aria-label="Dia anterior"><i class="fa-solid fa-chevron-left"></i></button>
+      <label class="relative">
+        <span id="adm-date-label" class="font-display text-2xl font-semibold px-2 cursor-pointer"></span>
+        <input id="adm-date" type="date" class="absolute inset-0 opacity-0 cursor-pointer" onchange="adm.date=this.value;loadAgenda()">
+      </label>
+      <button onclick="admShift(1)" class="btn btn-ghost !p-2.5" aria-label="Próximo dia"><i class="fa-solid fa-chevron-right"></i></button>
+      <button onclick="adm.date=ymd(new Date());loadAgenda()" class="btn btn-ghost !py-2 !px-3 text-sm">Hoje</button>
+      <button onclick="loadAgenda()" class="ml-auto text-sm text-gold"><i class="fa-solid fa-rotate"></i> Atualizar</button>
+    </div>
+
+    <!-- Agenda -->
+    <div id="tab-agenda">
+      <div id="adm-filters" class="flex gap-2 scroll-x mb-4"></div>
+      <div id="adm-kpis" class="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4"></div>
+      <div id="adm-pending" class="mb-4"></div>
+      <div id="adm-agenda" class="scroll-x rounded-2xl border border-line" style="max-height:70vh; overflow:auto"></div>
+      <p id="adm-hint" class="text-xs text-mute mt-3">Toque num espaço livre para encaixar um cliente ou bloquear o horário. Toque num atendimento para fechar com a forma de pagamento, registrar falta ou lembrar no WhatsApp.</p>
+    </div>
+
+    <!-- Caixa do dia (master) -->
+    <div id="tab-cash" hidden>
+      <div id="cash-body" class="space-y-5"></div>
+    </div>
+
+    <!-- Clientes (master) -->
+    <div id="tab-clients" hidden>
+      <div class="flex flex-wrap gap-2 mb-3">
+        <input id="cl-search" class="field flex-1 min-w-[200px]" placeholder="Buscar por nome, WhatsApp, bairro ou código" oninput="adm.q=this.value;renderClients()">
+        <button onclick="exportCsv()" class="btn btn-ghost"><i class="fa-solid fa-file-arrow-down"></i> Exportar lista</button>
+      </div>
+      <div id="cl-filters" class="flex gap-2 scroll-x mb-3"></div>
+      <p id="cl-count" class="text-sm text-mute mb-3"></p>
+      <div id="cl-list" class="space-y-2"></div>
+    </div>
+  </div>
+</section>
+
+<!-- Modal -->
+<div id="modal" class="fixed inset-0 z-50 hidden">
+  <div class="absolute inset-0 bg-black/70" onclick="closeModal()"></div>
+  <div class="absolute inset-x-0 bottom-0 sm:inset-auto sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:w-[440px] bg-panel border border-line rounded-t-3xl sm:rounded-3xl p-6 max-h-[90vh] overflow-y-auto" role="dialog" aria-modal="true">
+    <button onclick="closeModal()" class="absolute right-4 top-4 text-mute p-1" aria-label="Fechar"><i class="fa-solid fa-xmark text-lg"></i></button>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<div id="toast" role="status" aria-live="polite" class="fixed left-1/2 -translate-x-1/2 bottom-6 z-[60] max-w-sm w-[calc(100%-2rem)] bg-panel border border-gold text-cream px-4 py-3 rounded-xl text-center opacity-0 translate-y-6 pointer-events-none"></div>
+
+<script>
+/* ===================== CONFIGURE AQUI ===================== */
+// URL da implantação do Apps Script (termina em /exec). A mesma vai no dashboard.html.
+const API_URL = "https://script.google.com/macros/s/AKfycbzVFg5ppLnxh5H0tClwkCkSWsq0AywznsOT_wUCRWaCF3MY_xwryaK2-V8me720aH7zBA/exec";
+/* ========================================================== */
+
+let CFG = null;
+let session = JSON.parse(localStorage.getItem('dr_session') || 'null');
+let bk = {};
+let wallet = null;
+let adm = { date: null, filter: 'all', data: null, clients: null, cfilter: 'all', q: '', tab: 'agenda' };
+const REF_FROM_URL = (new URLSearchParams(location.search).get('ref') || '').toUpperCase();
+
+/* ---------- utilitários ---------- */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const pad = n => String(n).padStart(2, '0');
+const ymd = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const fromYmd = s => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
+const br = s => s ? s.split('-').reverse().join('/') : '';
+const money = n => Number(n || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+const t2m = t => { const [h, m] = String(t).split(':').map(Number); return h * 60 + (m || 0); };
+const m2t = m => `${pad(Math.floor(m / 60))}:${pad(m % 60)}`;
+const WD = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
+const WDF = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
+const MF = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+const longDate = s => { const d = fromYmd(s); return `${WDF[d.getDay()]}, ${d.getDate()} de ${MF[d.getMonth()]}`; };
+const firstName = n => String(n || '').trim().split(' ')[0];
+const startOf = (date, time) => { const d = fromYmd(date); const m = t2m(time); d.setHours(Math.floor(m / 60), m % 60, 0, 0); return d; };
+const isPast = (date, time) => startOf(date, time) <= new Date();
+const phoneIntl = p => { let d = String(p || '').replace(/\D/g, ''); if (d && d.length <= 11) d = '55' + d; return d; };
+const wa = (text, phone) => `https://wa.me/${phone ?? CFG.whatsapp}?text=${encodeURIComponent(text)}`;
+const serviceBy = id => CFG.services.find(s => s.id === id);
+const barberBy = id => CFG.barbers.find(b => b.id === id);
+const isStaff = () => ['admin', 'barber'].includes(session?.user?.role);
+const isMaster = () => session?.user?.role === 'admin';
+const appLink = () => location.origin + location.pathname;
+
+function show(name) {
+  document.querySelectorAll('[data-screen]').forEach(s => s.classList.toggle('on', s.dataset.screen === name));
+  window.scrollTo(0, 0);
+}
+
+let toastTimer;
+function toast(msg) {
+  const t = $('#toast');
+  t.textContent = msg;
+  t.classList.remove('opacity-0', 'translate-y-6');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.add('opacity-0', 'translate-y-6'), 3800);
+}
+
+function busy(btn, on, label) {
+  if (!btn) return;
+  if (on) { btn.dataset.label = btn.innerHTML; btn.disabled = true; btn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> ${label || 'Aguarde'}`; }
+  else { btn.disabled = false; if (btn.dataset.label) btn.innerHTML = btn.dataset.label; }
+}
+
+function togglePass(id, btn) {
+  const i = document.getElementById(id);
+  i.type = i.type === 'password' ? 'text' : 'password';
+  btn.innerHTML = `<i class="fa-solid ${i.type === 'password' ? 'fa-eye' : 'fa-eye-slash'}"></i>`;
+}
+
+function openModal(html) { $('#modal-body').innerHTML = html; $('#modal').classList.remove('hidden'); }
+function closeModal() { $('#modal').classList.add('hidden'); }
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+function saveSession() { localStorage.setItem('dr_session', JSON.stringify(session)); }
+
+/* ---------- API ---------- */
+async function api(action, params = {}) {
+  try {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // evita bloqueio de CORS no Apps Script
+      body: JSON.stringify({ action, token: session?.token, ...params })
+    });
+    const data = await res.json();
+    if (data.code === 'AUTH' && session) { logout(); toast(data.message); }
+    return data;
+  } catch (e) {
+    return { status: 'error', message: 'Sem conexão com o servidor. Confira a internet e tente de novo.' };
+  }
+}
+
+/* ---------- inicialização ---------- */
+async function boot() {
+  show('loading');
+  $('#btn-retry').hidden = true;
+  $('#loading-msg').textContent = 'Abrindo a agenda…';
+  const c = await api('getConfig');
+  if (c.status !== 'success') { $('#loading-msg').textContent = c.message; $('#btn-retry').hidden = false; return; }
+  CFG = c.config;
+  document.querySelectorAll('[data-wa-shop]').forEach(a => a.href = wa(`Olá, ${CFG.shopName}!`));
+  document.querySelectorAll('[data-vip-price]').forEach(s => s.textContent = money(CFG.vipPrice));
+  $('#rg-ref-wrap').hidden = !CFG.referral;
+
+  if (session?.token) {
+    const r = await api('me');
+    if (r.status === 'success') { session.user = r.user; saveSession(); return routeByRole(); }
+  }
+  if (REF_FROM_URL && CFG.referral) return openRegister(REF_FROM_URL);
+  show('login');
+}
+
+function routeByRole() { isStaff() ? goStaff() : goHome(); }
+
+/* ---------- conta ---------- */
+async function doLogin() {
+  const email = $('#login-email').value.trim(), password = $('#login-password').value;
+  if (!email || !password) return toast('Preencha e-mail e senha.');
+  const btn = $('#btn-login'); busy(btn, true, 'Entrando');
+  const r = await api('login', { email, password });
+  busy(btn, false);
+  if (r.status !== 'success') return toast(r.message);
+  session = { token: r.token, user: r.user }; saveSession();
+  routeByRole();
+}
+
+function openRegister(code) {
+  show('register');
+  if (code) { $('#rg-ref').value = code; previewRef(code); }
+}
+
+async function previewRef(code) {
+  const banner = $('#rg-ref-banner');
+  code = String(code || '').trim().toUpperCase();
+  if (!code || !CFG.referral) { banner.hidden = true; return; }
+  const r = await api('checkRefCode', { refCode: code });
+  if (r.status !== 'success') { banner.hidden = true; return toast(r.message); }
+  banner.hidden = false;
+  banner.innerHTML = `<p class="font-display text-2xl font-semibold text-gold">${money(CFG.referral.friendValue)} no seu primeiro atendimento</p>
+    <p class="text-sm text-mute mt-1">Presente de ${esc(r.firstName)}. O desconto fica guardado na sua conta assim que você terminar o cadastro.</p>`;
+}
+
+async function doRegister() {
+  const p = {
+    name: $('#rg-name').value.trim(), email: $('#rg-email').value.trim(), phone: $('#rg-phone').value,
+    birthDate: $('#rg-birth').value, maritalStatus: $('#rg-marital').value, neighborhood: $('#rg-hood').value,
+    wantsVip: document.querySelector('input[name="rg-plan"]:checked').value === 'vip',
+    password: $('#rg-pass').value, marketing: $('#rg-mkt').checked, refCode: $('#rg-ref').value.trim()
+  };
+  if (!p.name || !p.email || !p.password) return toast('Preencha nome, e-mail e senha.');
+  if (p.phone.replace(/\D/g, '').length < 10) return toast('Informe o WhatsApp com DDD.');
+  if (p.password.length < 6) return toast('A senha precisa ter pelo menos 6 caracteres.');
+  const btn = $('#btn-register'); busy(btn, true, 'Criando conta');
+  const r = await api('register', p);
+  busy(btn, false);
+  if (r.status !== 'success') return toast(r.message);
+  session = { token: r.token, user: r.user }; saveSession();
+  if (REF_FROM_URL) history.replaceState(null, '', location.pathname);
+  goHome();
+  if (r.notice) toast(r.notice);
+  else if (r.welcomeVoucher) toast(`Conta criada. Seus ${money(r.welcomeVoucher.value)} de desconto já estão guardados.`);
+  else if (p.wantsVip) toast('Conta criada. Pague no balcão para ativar seu VIP.');
+}
+
+async function doReset() {
+  const btn = $('#btn-forgot'); busy(btn, true);
+  const r = await api('resetPassword', { email: $('#fg-email').value, birthDate: $('#fg-birth').value, newPassword: $('#fg-pass').value });
+  busy(btn, false);
+  toast(r.message);
+  if (r.status === 'success') show('login');
+}
+
+function openPassword() {
+  openModal(`<h3 class="font-display text-3xl font-semibold mb-4">Trocar senha</h3>
+    <div class="space-y-3">
+      <div><label class="label" for="pw-cur">Senha atual</label><input id="pw-cur" type="password" class="field" autocomplete="current-password"></div>
+      <div><label class="label" for="pw-new">Nova senha</label><input id="pw-new" type="password" class="field" placeholder="Mínimo 6 caracteres" autocomplete="new-password"></div>
+      <button id="pw-go" class="btn btn-gold w-full" onclick="doChangePassword()">Salvar nova senha</button>
+    </div>`);
+}
+
+async function doChangePassword() {
+  const btn = $('#pw-go'); busy(btn, true, 'Salvando');
+  const r = await api('changePassword', { currentPassword: $('#pw-cur').value, newPassword: $('#pw-new').value });
+  busy(btn, false);
+  toast(r.message);
+  if (r.status === 'success') closeModal();
+}
+
+function logout() {
+  session = null; wallet = null; localStorage.removeItem('dr_session');
+  clearInterval(admTimer);
+  show('login');
+}
+
+/* ---------- home do cliente ---------- */
+function goHome() {
+  const u = session.user;
+  show('home');
+  $('#btn-to-admin').hidden = u.role !== 'admin';
+  $('#home-hello').textContent = `Olá, ${firstName(u.name)}`;
+
+  let card;
+  if (u.vipActive) {
+    card = `<div class="rounded-2xl border border-gold/60 bg-gold/10 p-4"><p class="font-semibold text-gold"><i class="fa-solid fa-crown"></i> Clube VIP ativo</p><p class="text-sm text-mute mt-1">${u.vipUntil ? `Válido até ${br(u.vipUntil)}.` : ''} Cabelo e barba inclusos.</p></div>`;
+  } else if (u.plan === 'VIP - Aguardando Pagamento' || u.plan === 'Assinante VIP') {
+    const expired = u.plan === 'Assinante VIP';
+    card = `<div class="rounded-2xl border border-line bg-panel p-4"><p class="font-semibold"><i class="fa-solid fa-crown text-gold"></i> ${expired ? 'Seu VIP venceu' : 'VIP aguardando pagamento'}</p><p class="text-sm text-mute mt-1">Pague no balcão (${money(CFG.vipPrice)}) e o VIP vale ${CFG.vipDays} dias a partir do pagamento.</p></div>`;
+  } else {
+    card = `<div class="rounded-2xl border border-line bg-panel p-4 flex items-center gap-4"><div class="flex-1"><p class="font-semibold">Clube VIP por ${money(CFG.vipPrice)}</p><p class="text-sm text-mute mt-1">Cabelo e barba inclusos por ${CFG.vipDays} dias.</p></div><a class="btn btn-ghost !py-2 !px-3 text-sm" target="_blank" rel="noopener" href="${wa(`Olá! Quero saber mais sobre o Clube VIP. Meu nome é ${u.name}.`)}">Quero ser VIP</a></div>`;
+  }
+  $('#vip-card').innerHTML = card;
+  loadMyBookings();
+  loadWallet();
+}
+
+async function loadWallet() {
+  if (!CFG.referral) return;
+  const r = await api('myWallet');
+  if (r.status !== 'success') return;
+  wallet = r;
+  const avail = r.vouchers.filter(v => v.status === 'Disponível');
+  const reserved = r.vouchers.filter(v => v.status === 'Reservado');
+  $('#my-vouchers').innerHTML = avail.map(v => `
+    <div class="ticket flex items-center gap-4">
+      <div class="flex-1"><p class="font-display text-3xl font-semibold text-gold leading-none">${money(v.value)}</p>
+      <p class="text-sm text-mute mt-1">${v.kind === 'Indicação' ? 'Prêmio por indicar um amigo' : 'Presente de boas-vindas'}. Válido até ${br(v.expires)}.</p></div>
+      <span class="text-xs text-mute text-right">Aplicado<br>ao agendar</span>
+    </div>`).join('') + (reserved.length ? `<p class="text-sm text-mute">${reserved.length === 1 ? '1 desconto reservado' : reserved.length + ' descontos reservados'} para seu próximo horário.</p>` : '');
+
+  const link = `${appLink()}?ref=${r.refCode}`;
+  const msg = `Bora cortar na ${CFG.shopName}? Cadastra com o meu código ${r.refCode} e ganha ${money(CFG.referral.friendValue)} no primeiro atendimento: ${link}`;
+  const card = $('#refer-card');
+  card.hidden = false;
+  card.innerHTML = `
+    <h3 class="font-display text-2xl font-semibold">Indique e ganhe</h3>
+    <p class="text-sm text-mute mt-1">Seu amigo ganha ${money(CFG.referral.friendValue)} no primeiro atendimento. Quando ele for atendido, você ganha ${money(CFG.referral.referrerValue)}.</p>
+    <p class="font-display text-4xl font-bold tracking-wider text-gold mt-4">${esc(r.refCode)}</p>
+    <div class="grid grid-cols-2 gap-2 mt-4">
+      <a class="btn btn-gold" target="_blank" rel="noopener" href="${esc(wa(msg, ''))}"><i class="fa-brands fa-whatsapp"></i> Enviar</a>
+      <button class="btn btn-ghost" onclick="copyText('${esc(link)}','Link copiado.')"><i class="fa-regular fa-copy"></i> Copiar link</button>
+    </div>
+    ${r.referred ? `<p class="text-sm text-mute mt-4">${r.referred === 1 ? '1 amigo cadastrado' : r.referred + ' amigos cadastrados'}, ${r.converted} já ${r.converted === 1 ? 'veio' : 'vieram'}.</p>` : ''}`;
+}
+
+async function copyText(text, okMsg) {
+  try { await navigator.clipboard.writeText(text); toast(okMsg); }
+  catch (e) { prompt('Copie:', text); }
+}
+
+async function loadMyBookings() {
+  $('#my-upcoming').innerHTML = `<p class="text-mute">Carregando…</p>`;
+  const r = await api('myBookings');
+  if (r.status !== 'success') { $('#my-upcoming').innerHTML = `<p class="text-mute">${esc(r.message)}</p>`; return; }
+  const now = new Date();
+  const upcoming = r.bookings.filter(b => b.status === 'Confirmado' && startOf(b.date, b.time) > now)
+    .sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
+  const past = r.bookings.filter(b => !upcoming.includes(b)).sort((a, b) => (b.date + b.time).localeCompare(a.date + a.time)).slice(0, 12);
+
+  $('#my-upcoming').innerHTML = upcoming.length ? upcoming.map(b => {
+    const canCancel = startOf(b.date, b.time) - now >= CFG.cancelMinHours * 3600000;
+    const bj = esc(JSON.stringify(b));
+    return `<div class="rounded-2xl bg-panel border border-line p-4">
+      <p class="text-gold font-semibold">${esc(longDate(b.date))}, ${esc(b.time)}</p>
+      <p class="font-display text-2xl font-semibold mt-1">${esc(b.service)}</p>
+      <p class="text-sm text-mute">Com ${esc(b.barber)}, unidade ${esc(b.unit)}${b.discount ? `. ${money(b.expected)} com desconto` : ''}</p>
+      <div class="flex flex-wrap gap-2 mt-3">
+        <a class="btn btn-ghost !py-2 !px-3 text-sm" target="_blank" rel="noopener" href="${esc(gcalLink(b))}"><i class="fa-regular fa-calendar-plus"></i> Minha agenda</a>
+        ${canCancel
+          ? `<button class="btn btn-ghost !py-2 !px-3 text-sm text-red-300" onclick='cancelMine(${bj})'>Cancelar</button>`
+          : `<a class="btn btn-ghost !py-2 !px-3 text-sm" target="_blank" rel="noopener" href="${esc(wa(`Olá! Preciso remarcar meu horário de ${longDate(b.date)} às ${b.time} (${b.service}).`))}"><i class="fa-brands fa-whatsapp text-green-400"></i> Remarcar</a>`}
+      </div></div>`;
+  }).join('') : `<div class="rounded-2xl border border-dashed border-line p-5 text-mute">Nenhum horário marcado. Que tal agendar o próximo?</div>`;
+
+  $('#my-history-wrap').hidden = !past.length;
+  $('#my-history').innerHTML = past.map(b => `<div class="flex justify-between text-sm border-b border-line pb-2"><span>${br(b.date)}, ${esc(b.service)}</span><span class="text-mute">${esc(b.status === 'Confirmado' ? 'Realizado' : b.status === 'Concluído' ? 'Atendido' : b.status)}</span></div>`).join('');
+}
+
+async function cancelMine(b) {
+  if (!confirm(`Cancelar ${b.service} de ${longDate(b.date)} às ${b.time}?${b.voucher ? ' O desconto volta para a sua conta.' : ''}`)) return;
+  const r = await api('cancelBooking', { bookingId: b.id });
+  toast(r.message);
+  if (r.status === 'success') { loadMyBookings(); loadWallet(); }
+}
+
+function gcalLink(b) {
+  const d = b.date.replace(/-/g, '');
+  const s = `${d}T${b.time.replace(':', '')}00`;
+  const e = `${d}T${m2t(t2m(b.time) + (b.duration || 30)).replace(':', '')}00`;
+  return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(`${CFG.shopName}: ${b.service}`)}&dates=${s}/${e}&ctz=America/Sao_Paulo&details=${encodeURIComponent(`Com ${b.barber}. Remarcar: https://wa.me/${CFG.whatsapp}`)}&location=${encodeURIComponent(`${CFG.shopName}, unidade ${b.unit}`)}`;
+}
+
+/* ---------- fluxo de agendamento ---------- */
+function bkSteps() {
+  const steps = ['unit', 'service'];
+  if (!bk.unit || CFG.barbers.filter(b => b.unit === bk.unit).length > 1) steps.push('barber');
+  return steps.concat(['datetime', 'review']);
+}
+
+function startBooking() { bk = { step: 'unit' }; show('book'); renderBk(); }
+function bkGo(step) { bk.step = step; renderBk(); window.scrollTo(0, 0); }
+function bkBack() { const s = bkSteps(), i = s.indexOf(bk.step); i <= 0 ? goHome() : bkGo(s[i - 1]); }
+function bkNextFrom(step) { const s = bkSteps(); bkGo(s[s.indexOf(step) + 1]); }
+
+function availableVouchers() { return (wallet?.vouchers || []).filter(v => v.status === 'Disponível').sort((a, b) => b.value - a.value || a.expires.localeCompare(b.expires)); }
+
+function renderBk() {
+  const steps = bkSteps();
+  $('#bk-progress').textContent = `Passo ${steps.indexOf(bk.step) + 1} de ${steps.length}`;
+  $('#bk-footer').hidden = true;
+  const body = $('#bk-body');
+
+  if (bk.step === 'unit') {
+    $('#bk-title').textContent = 'Qual unidade?';
+    body.innerHTML = `<div class="space-y-3">${CFG.units.map(u => {
+      const names = CFG.barbers.filter(b => b.unit === u.name).map(b => b.short);
+      const who = names.length > 1 ? names.slice(0, -1).join(', ') + ' e ' + names.slice(-1) : names[0];
+      return `<button class="pick ${bk.unit === u.name ? 'sel' : ''}" onclick="pickUnit('${esc(u.name)}')"><span class="font-display text-2xl font-semibold block">${esc(u.name)}</span><span class="text-sm text-mute">${esc(u.label)}, com ${esc(who)}</span></button>`;
+    }).join('')}</div>`;
+  }
+
+  if (bk.step === 'service') {
+    $('#bk-title').textContent = 'Qual serviço?';
+    const list = CFG.services.filter(s => !s.vipOnly || session.user.vipActive);
+    body.innerHTML = `<div class="space-y-3">${list.map(s => `
+      <button class="pick flex items-center justify-between ${bk.service?.id === s.id ? 'sel' : ''}" onclick="pickService('${s.id}')">
+        <span><span class="font-semibold text-lg block">${esc(s.name)}</span><span class="text-sm text-mute">${s.duration >= 60 ? '1 hora' : s.duration + ' min'}</span></span>
+        <span class="font-display text-2xl font-semibold ${s.vipOnly ? 'text-gold' : ''}">${s.vipOnly ? 'Incluso' : money(s.price)}</span>
+      </button>`).join('')}</div>
+      ${availableVouchers().length ? `<p class="text-sm text-gold mt-4"><i class="fa-solid fa-ticket"></i> Você tem ${money(availableVouchers()[0].value)} de desconto para usar.</p>` : ''}
+      ${session.user.vipActive ? '' : `<p class="text-sm text-mute mt-4">Assinantes do Clube VIP têm cabelo e barba inclusos no mês.</p>`}`;
+  }
+
+  if (bk.step === 'barber') {
+    $('#bk-title').textContent = 'Com quem?';
+    body.innerHTML = `<div class="space-y-3">${CFG.barbers.filter(b => b.unit === bk.unit).map(b => `
+      <button class="pick ${bk.barber?.id === b.id ? 'sel' : ''}" onclick="pickBarber('${b.id}')"><span class="font-display text-2xl font-semibold block">${esc(b.short)}</span><span class="text-sm text-mute">${esc(b.specialty)}</span></button>`).join('')}</div>`;
+  }
+
+  if (bk.step === 'datetime') {
+    $('#bk-title').textContent = 'Quando?';
+    const days = [], d = new Date();
+    for (let i = 0; i < 21; i++) days.push(new Date(d.getFullYear(), d.getMonth(), d.getDate() + i));
+    if (!bk.date) bk.date = ymd(days.find(x => !CFG.closedWeekdays.includes(x.getDay())));
+    body.innerHTML = `
+      <div class="scroll-x flex gap-2 pb-2 -mx-5 px-5">${days.map(x => {
+        const k = ymd(x), closed = CFG.closedWeekdays.includes(x.getDay());
+        return `<button class="day ${bk.date === k ? 'sel' : ''}" ${closed ? 'disabled title="Fechado"' : ''} onclick="pickDate('${k}')">
+          <span class="block text-xs">${WD[x.getDay()]}</span><span class="font-display text-2xl font-semibold block leading-tight">${x.getDate()}</span><span class="block text-[11px] opacity-70">${MF[x.getMonth()].slice(0, 3)}</span></button>`;
+      }).join('')}</div>
+      <p class="text-mute mt-4 mb-3">${esc(longDate(bk.date))}</p>
+      <div id="bk-times" class="grid grid-cols-4 gap-2"><p class="col-span-4 text-mute">Verificando horários…</p></div>`;
+    loadTimes();
+  }
+
+  if (bk.step === 'review') {
+    $('#bk-title').textContent = 'Confere pra mim';
+    const s = bk.service, b = bk.barber;
+    const vs = s.price > 0 ? availableVouchers() : [];
+    if (bk.voucher === undefined) bk.voucher = vs[0]?.code || null; // aplica o melhor desconto por padrão
+    const v = vs.find(x => x.code === bk.voucher);
+    const disc = v ? Math.min(v.value, s.price) : 0;
+    const valor = s.vipOnly ? 'Incluso no Clube VIP' : disc ? `<s class="text-mute">${money(s.price)}</s> <span class="text-gold">${money(s.price - disc)}</span>` : money(s.price);
+    body.innerHTML = `<div class="rounded-2xl bg-panel border border-line divide-y divide-line">
+      ${[['Serviço', esc(s.name)], ['Quando', esc(`${longDate(bk.date)}, ${bk.time}`)], ['Duração', s.duration >= 60 ? '1 hora' : s.duration + ' min'], ['Profissional', esc(b.short)], ['Unidade', esc(b.unit)], ['Valor', valor + (s.vipOnly ? '' : '<span class="block text-xs text-mute">pago na barbearia</span>')]]
+        .map(([k, val]) => `<div class="flex justify-between gap-4 p-4"><span class="text-mute">${k}</span><span class="text-right font-medium">${val}</span></div>`).join('')}
+    </div>
+    ${vs.length ? `<div class="mt-4">
+      <p class="label">Desconto</p>
+      <div class="flex flex-wrap gap-2">
+        ${vs.map(x => `<button class="chip ${bk.voucher === x.code ? 'sel' : ''}" onclick="bk.voucher='${x.code}';renderBk()">Usar ${money(x.value)}</button>`).join('')}
+        <button class="chip ${!bk.voucher ? 'sel' : ''}" onclick="bk.voucher=null;renderBk()">Guardar para depois</button>
+      </div></div>` : ''}
+    <p class="text-sm text-mute mt-4">Você pode cancelar pelo app até ${CFG.cancelMinHours}h antes${disc ? ' e o desconto volta para a sua conta' : ''}.</p>`;
+    $('#bk-footer').hidden = false;
+    const btn = $('#bk-next'); btn.innerHTML = 'Confirmar agendamento'; btn.onclick = confirmBooking;
+  }
+}
+
+function pickUnit(u) {
+  bk.unit = u; bk.barber = null; bk.date = null; bk.time = null;
+  const list = CFG.barbers.filter(b => b.unit === u);
+  if (list.length === 1) bk.barber = list[0];
+  bkNextFrom('unit');
+}
+function pickService(id) { bk.service = serviceBy(id); bk.time = null; bk.voucher = undefined; bkNextFrom('service'); }
+function pickBarber(id) { bk.barber = barberBy(id); bk.time = null; bkNextFrom('barber'); }
+function pickDate(k) { bk.date = k; bk.time = null; renderBk(); }
+
+async function loadTimes() {
+  const date = bk.date;
+  const r = await api('getAvailableTimes', { date, barberId: bk.barber.id, serviceId: bk.service.id });
+  if (bk.step !== 'datetime' || bk.date !== date) return; // trocou de dia no meio
+  const box = $('#bk-times');
+  if (r.status !== 'success') { box.innerHTML = `<p class="col-span-4 text-red-300">${esc(r.message)}</p>`; return; }
+  if (r.closed) { box.innerHTML = `<p class="col-span-4 text-mute">A barbearia não abre nesse dia.</p>`; return; }
+  if (!r.times.some(t => t.free)) { box.innerHTML = `<p class="col-span-4 text-mute">Sem horários livres nesse dia. Tente outra data ou <a class="text-gold underline" target="_blank" href="${esc(wa('Olá! Procuro um encaixe no dia ' + br(date) + '.'))}">peça um encaixe no WhatsApp</a>.</p>`; return; }
+  box.innerHTML = r.times.map(t => `<button class="slot ${t.free ? '' : 'off'}" ${t.free ? `onclick="pickTime('${t.time}')"` : 'aria-disabled="true"'}>${t.time}</button>`).join('');
+}
+
+function pickTime(t) { bk.time = t; bkGo('review'); }
+
+async function confirmBooking() {
+  const btn = $('#bk-next'); busy(btn, true, 'Marcando');
+  const r = await api('createBooking', { serviceId: bk.service.id, barberId: bk.barber.id, date: bk.date, time: bk.time, voucherCode: bk.voucher || '' });
+  busy(btn, false);
+  if (r.status !== 'success') { toast(r.message); bk.time = null; return bkGo('datetime'); }
+  const b = r.booking;
+  $('#ok-details').innerHTML = `<p class="text-gold font-semibold">${esc(longDate(b.date))}, ${esc(b.time)}</p><p>${esc(b.service)} com ${esc(b.barber)}, unidade ${esc(b.unit)}.</p>${b.discount ? `<p class="text-sm text-mute mt-2">Valor com desconto: ${money(b.price - b.discount)}.</p>` : ''}`;
+  $('#ok-gcal').href = gcalLink(b);
+  $('#ok-wa').href = wa(`Olá! Acabei de agendar pelo app: ${b.service} com ${b.barber} em ${longDate(b.date)} às ${b.time}. Nome: ${session.user.name}.`);
+  show('success');
+}
+
+/* ================= PAINEL DA EQUIPE ================= */
+let admTimer;
+function goStaff() {
+  show('staff');
+  const u = session.user, master = isMaster();
+  $('#st-title').textContent = master ? 'Painel master' : `Agenda de ${firstName(u.name)}`;
+  const me = barberBy(u.barberId);
+  $('#st-sub').textContent = master ? 'Todas as unidades' : (me ? `Unidade ${me.unit}` : '');
+  $('#st-nav').hidden = !master;
+  $('#st-dash').hidden = !master;
+  $('#st-client').hidden = !master;
+  $('#adm-hint').textContent = master
+    ? 'Toque num espaço livre para encaixar um cliente ou bloquear o horário. Toque num atendimento para fechar com a forma de pagamento, registrar falta ou lembrar no WhatsApp.'
+    : 'Ao terminar cada atendimento, toque nele e feche com a forma de pagamento: é isso que entra no seu resultado do dia.';
+  if (!adm.date) adm.date = ymd(new Date());
+  adm.filter = 'all';
+  stTab('agenda');
+  clearInterval(admTimer);
+  admTimer = setInterval(() => {
+    if ($('[data-screen="staff"]').classList.contains('on') && adm.tab !== 'clients' && $('#modal').classList.contains('hidden') && !document.hidden) loadAgenda(true);
+  }, 60000);
+}
+
+function stTab(tab) {
+  if (!isMaster()) tab = 'agenda';
+  adm.tab = tab;
+  document.querySelectorAll('[data-tab]').forEach(b => b.classList.toggle('sel', b.dataset.tab === tab));
+  ['agenda', 'cash', 'clients'].forEach(t => $('#tab-' + t).hidden = t !== tab);
+  $('#st-datebar').hidden = tab === 'clients';
+  tab === 'clients' ? loadClients() : loadAgenda();
+}
+
+function admShift(n) { const d = fromYmd(adm.date); d.setDate(d.getDate() + n); adm.date = ymd(d); loadAgenda(); }
+
+function admFilters() {
+  if (!isMaster()) return [];
+  return [{ k: 'all', l: 'Todas as unidades' }]
+    .concat(CFG.units.map(u => ({ k: 'u:' + u.name, l: u.name })))
+    .concat(CFG.barbers.map(b => ({ k: 'b:' + b.id, l: b.short })));
+}
+
+function visibleBarbers() {
+  if (!isMaster()) return CFG.barbers.filter(b => b.id === session.user.barberId);
+  if (adm.filter.startsWith('u:')) return CFG.barbers.filter(b => b.unit === adm.filter.slice(2));
+  if (adm.filter.startsWith('b:')) return CFG.barbers.filter(b => b.id === adm.filter.slice(2));
+  return CFG.barbers;
+}
+
+async function loadAgenda(silent) {
+  $('#adm-date').value = adm.date;
+  const today = ymd(new Date());
+  $('#adm-date-label').textContent = (adm.date === today ? 'Hoje, ' : '') + longDate(adm.date);
+  $('#adm-filters').innerHTML = admFilters().map(f => `<button class="chip ${adm.filter === f.k ? 'sel' : ''}" onclick="adm.filter='${esc(f.k)}';renderAgenda()">${esc(f.l)}</button>`).join('');
+  if (!silent) {
+    $('#adm-agenda').innerHTML = `<p class="p-6 text-mute">Carregando agenda…</p>`;
+    if (adm.tab === 'cash') $('#cash-body').innerHTML = `<p class="text-mute">Carregando caixa…</p>`;
+  }
+  const r = await api('agenda', { date: adm.date });
+  if (r.status !== 'success') { $('#adm-agenda').innerHTML = `<p class="p-6 text-red-300">${esc(r.message)}</p>`; return; }
+  adm.data = r;
+  adm.tab === 'cash' ? renderCash() : renderAgenda();
+}
+
+// Números do dia para os barbeiros visíveis (serve para o barbeiro e para qualquer filtro do master)
+function dayNumbers(vis) {
+  const ids = new Set(vis.map(b => b.id));
+  const items = adm.data.bookings.filter(b => ids.has(b.barberId));
+  const real = items.filter(b => b.origin !== 'Bloqueio');
+  const done = real.filter(b => b.status === 'Concluído');
+  const missed = real.filter(b => b.status === 'Faltou');
+  const open = real.filter(b => b.status === 'Confirmado');
+  const late = open.filter(b => startOf(b.date, m2t(t2m(b.time) + b.duration)) < new Date());
+  const blocked = items.filter(b => b.origin === 'Bloqueio').reduce((a, b) => a + b.duration, 0);
+  const capacity = (t2m(CFG.closeTime) - t2m(CFG.openTime)) * vis.length - blocked;
+  const booked = real.reduce((a, b) => a + b.duration, 0);
+  const month = vis.reduce((a, b) => { const m = adm.data.monthByBarber?.[b.id]; if (m) { a.done += m.done; a.revenue += m.revenue; } return a; }, { done: 0, revenue: 0 });
+  return {
+    items, real, done, missed, open, late, month,
+    revenue: done.reduce((a, b) => a + b.charged, 0),
+    expected: real.filter(b => b.status !== 'Faltou').reduce((a, b) => a + (b.status === 'Concluído' ? b.charged : b.expected), 0),
+    occupancy: capacity > 0 ? Math.round(booked / capacity * 100) : 0,
+    vips: real.filter(b => b.vipService).length
+  };
+}
+
+function renderAgenda() {
+  const data = adm.data; if (!data) return;
+  $('#adm-filters').querySelectorAll('.chip').forEach((c, i) => c.classList.toggle('sel', admFilters()[i].k === adm.filter));
+  const vis = visibleBarbers();
+  const n = dayNumbers(vis);
+  const rate = data.me?.commissionRate || 0;
+
+  const kpi = (v, l, x) => `<div class="rounded-2xl bg-panel border border-line p-3"><p class="font-display text-2xl sm:text-3xl font-semibold leading-none num">${v}</p><p class="text-xs text-mute mt-1">${l}</p>${x ? `<p class="text-xs text-mute">${x}</p>` : ''}</div>`;
+  const monthLabel = MF[fromYmd(adm.date).getMonth()];
+  $('#adm-kpis').innerHTML =
+    kpi(n.real.length, n.real.length === 1 ? 'atendimento no dia' : 'atendimentos no dia', `${n.done.length} fechados${n.missed.length ? `, ${n.missed.length} faltas` : ''}${n.vips ? `, ${n.vips} VIP` : ''}`) +
+    kpi(money(n.revenue), 'faturado no dia', `previsto ${money(n.expected)}`) +
+    kpi(money(n.month.revenue), `em ${monthLabel} até este dia`, `${n.month.done} atendimentos${rate ? `, comissão ~${money(n.month.revenue * rate)}` : ''}`) +
+    kpi(n.occupancy + '%', 'da agenda ocupada', '');
+
+  $('#adm-pending').innerHTML = n.late.length ? `<div class="rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm"><i class="fa-solid fa-circle-exclamation text-amber-300"></i> ${n.late.length === 1 ? '1 atendimento já terminou e ainda não foi fechado' : n.late.length + ' atendimentos já terminaram e ainda não foram fechados'}. Toque neles e registre o pagamento ou a falta.</div>` : '';
+
+  if (data.closed) { $('#adm-agenda').innerHTML = `<p class="p-6 text-mute">A barbearia não abre nesse dia.</p>`; return; }
+
+  const slots = data.slots, step = CFG.slotMinutes, openMin = t2m(CFG.openTime);
+  let h = `<div class="agenda-grid" style="grid-template-columns:56px repeat(${vis.length}, minmax(170px,1fr)); grid-auto-rows:var(--row);">`;
+  h += `<div class="ag-corner" style="grid-column:1;grid-row:1"></div>`;
+  vis.forEach((b, i) => h += `<div class="ag-head" style="grid-column:${i + 2};grid-row:1">${esc(b.short)}<span>Unidade ${esc(b.unit)}</span></div>`);
+  slots.forEach((t, r) => h += `<div class="ag-time" style="grid-column:1;grid-row:${r + 2}">${t}</div>`);
+
+  vis.forEach((barber, i) => {
+    const col = i + 2, covered = new Set();
+    n.items.filter(b => b.barberId === barber.id).forEach(b => {
+      const r0 = Math.max(0, Math.floor((t2m(b.time) - openMin) / step));
+      const span = Math.max(1, Math.ceil(b.duration / step));
+      for (let k = 0; k < span; k++) covered.add(r0 + k);
+      const block = b.origin === 'Bloqueio';
+      const late = n.late.includes(b);
+      const cls = block ? 'block' : b.status === 'Concluído' ? 'st-done' : b.status === 'Faltou' ? 'st-miss' : late ? 'st-late' : '';
+      const tag = b.status === 'Concluído' ? `<span class="block text-[11px] text-green-400">${esc(b.payment)} ${b.vipService ? '' : money(b.charged)}</span>`
+        : b.status === 'Faltou' ? '<span class="block text-[11px] text-red-300">Faltou</span>'
+        : late ? '<span class="block text-[11px] text-amber-300">Fechar atendimento</span>' : '';
+      h += `<button class="ag-item ${cls}" style="grid-column:${col};grid-row:${r0 + 2} / span ${span}" onclick="openBooking('${esc(b.id)}')">
+        <span class="block text-sm font-semibold truncate">${block ? '⛔ ' : ''}${esc(b.clientName)}${b.clientVip ? ' <i class="fa-solid fa-crown text-gold text-xs"></i>' : ''}${b.voucher ? ' <i class="fa-solid fa-ticket text-gold text-xs"></i>' : ''}</span>
+        ${block ? '' : `<span class="block text-xs text-mute truncate">${esc(b.time)} ${esc(b.service)}${b.origin === 'Balcão' ? ', balcão' : ''}</span>`}
+        ${tag}
+      </button>`;
+    });
+    slots.forEach((t, r) => {
+      if (covered.has(r)) return;
+      const past = isPast(adm.date, t);
+      h += `<button class="ag-free ${past ? 'past' : ''}" style="grid-column:${col};grid-row:${r + 2}" ${past ? 'disabled aria-label="Horário passado"' : `onclick="openFree('${barber.id}','${t}')" aria-label="Livre às ${t} com ${esc(barber.short)}"`}>${past ? '' : '+'}</button>`;
+    });
+  });
+  $('#adm-agenda').innerHTML = h + '</div>';
+}
+
+function openBooking(id) {
+  const b = adm.data.bookings.find(x => x.id === id); if (!b) return;
+  if (b.origin === 'Bloqueio') {
+    return openModal(`<h3 class="font-display text-3xl font-semibold mb-1">Horário bloqueado</h3>
+      <p class="text-mute mb-5">${esc(b.clientName)}, ${esc(b.time)} às ${m2t(t2m(b.time) + b.duration)} com ${esc(b.barber)}</p>
+      <button class="btn btn-ghost w-full" onclick="admStatus('${esc(b.id)}','Cancelado')">Liberar horário</button>`);
+  }
+  const phone = phoneIntl(b.clientPhone);
+  const remind = `Olá, ${firstName(b.clientName)}! Passando pra lembrar do seu horário ${adm.date === ymd(new Date()) ? 'hoje' : 'em ' + longDate(b.date)} às ${b.time}: ${b.service} com ${b.barber}, na ${CFG.shopName} (${b.unit}). Até já!`;
+  const priceLine = b.vipService ? 'incluso no VIP' : b.discount ? `${money(b.expected)} (${money(b.price)} com voucher de ${money(b.discount)})` : money(b.price);
+  openModal(`
+    <p class="text-gold font-semibold">${esc(b.time)} às ${m2t(t2m(b.time) + b.duration)}, ${esc(b.barber)}</p>
+    <h3 class="font-display text-3xl font-semibold leading-tight mt-1">${esc(b.clientName)} ${b.clientVip ? '<i class="fa-solid fa-crown text-gold text-lg"></i>' : ''}</h3>
+    <p class="text-mute">${esc(b.service)}, ${priceLine}${b.origin === 'Balcão' ? ', marcado no balcão' : ''}</p>
+    ${b.clientPhone ? `<p class="text-sm mt-2">WhatsApp: ${esc(b.clientPhone)}</p>` : ''}
+    ${b.status === 'Concluído' ? `<p class="mt-3 rounded-xl bg-green-900/30 border border-green-800/60 px-3 py-2 text-sm text-green-300"><i class="fa-solid fa-check"></i> Fechado: ${esc(b.payment)}${b.vipService ? '' : ', ' + money(b.charged)}</p>` : ''}
+    <div id="bk-actions" class="grid grid-cols-2 gap-2 mt-5">
+      ${b.status !== 'Concluído' ? `<button class="btn btn-gold col-span-2" onclick="openCheckout('${esc(b.id)}')"><i class="fa-solid fa-cash-register"></i> Fechar atendimento</button>` : ''}
+      ${phone && b.status === 'Confirmado' ? `<a class="btn btn-ghost col-span-2" target="_blank" rel="noopener" href="${esc(wa(remind, phone))}"><i class="fa-brands fa-whatsapp text-green-400"></i> Lembrar no WhatsApp</a>` : ''}
+      ${b.status !== 'Faltou' ? `<button class="btn btn-ghost" onclick="admStatus('${esc(b.id)}','Faltou')"><i class="fa-solid fa-user-slash"></i> Faltou</button>` : ''}
+      ${b.status !== 'Confirmado' ? `<button class="btn btn-ghost" onclick="admStatus('${esc(b.id)}','Confirmado')">Reabrir</button>` : ''}
+      <button class="btn btn-ghost ${b.status === 'Confirmado' ? '' : 'col-span-2'} text-red-300" onclick="if(confirm('Cancelar este atendimento e liberar o horário?'))admStatus('${esc(b.id)}','Cancelado')">Cancelar</button>
+    </div>
+    <div id="checkout"></div>`);
+}
+
+function openCheckout(id) {
+  const b = adm.data.bookings.find(x => x.id === id);
+  $('#bk-actions').hidden = true;
+  if (b.vipService) {
+    $('#checkout').innerHTML = `<div class="mt-5 space-y-3"><p class="text-sm text-mute">Atendimento do Clube VIP: nada a cobrar.</p>
+      <button id="co-go" class="btn btn-gold w-full" onclick="saveCheckout('${esc(id)}')">Confirmar atendimento</button></div>`;
+    return;
+  }
+  const methods = CFG.paymentMethods.concat(['Cortesia']);
+  $('#checkout').innerHTML = `<div class="mt-5 space-y-4">
+    <div><p class="label">Como o cliente pagou</p>
+      <div id="co-methods" class="flex flex-wrap gap-2">${methods.map(m => `<button class="chip" data-m="${m}" onclick="pickMethod('${m}')">${m}</button>`).join('')}</div></div>
+    <div><label class="label" for="co-amount">Valor cobrado (R$)</label>
+      <input id="co-amount" type="number" inputmode="decimal" step="0.01" min="0" class="field num" value="${b.expected.toFixed(2)}">
+      ${b.voucher ? `<p class="text-xs text-mute mt-1"><i class="fa-solid fa-ticket text-gold"></i> Voucher de ${money(b.discount)} já descontado.</p>` : ''}</div>
+    <button id="co-go" class="btn btn-gold w-full" disabled onclick="saveCheckout('${esc(id)}')">Escolha a forma de pagamento</button>
+    <button class="btn btn-ghost w-full" onclick="$('#checkout').innerHTML='';$('#bk-actions').hidden=false">Voltar</button>
+  </div>`;
+}
+
+function pickMethod(m) {
+  document.querySelectorAll('#co-methods .chip').forEach(c => c.classList.toggle('sel', c.dataset.m === m));
+  $('#co-go').dataset.method = m;
+  $('#co-go').disabled = false;
+  $('#co-amount').disabled = m === 'Cortesia';
+  if (m === 'Cortesia') $('#co-amount').value = '0.00';
+  $('#co-go').textContent = m === 'Cortesia' ? 'Fechar como cortesia' : `Fechar no ${m}`;
+}
+
+async function saveCheckout(id) {
+  const btn = $('#co-go');
+  const payment = btn.dataset.method || '';
+  const charged = $('#co-amount') ? Number($('#co-amount').value) : 0;
+  if ($('#co-amount') && (isNaN(charged) || charged < 0)) return toast('Informe o valor cobrado.');
+  busy(btn, true, 'Fechando');
+  const r = await api('staffSetStatus', { bookingId: id, status: 'Concluído', payment, charged });
+  busy(btn, false);
+  if (r.status !== 'success') return toast(r.message);
+  closeModal(); toast('Atendimento fechado.');
+  loadAgenda(true);
+}
+
+async function admStatus(id, status) {
+  const r = await api('staffSetStatus', { bookingId: id, status });
+  if (r.status !== 'success') return toast(r.message);
+  closeModal();
+  toast({ 'Faltou': 'Falta registrada.', 'Cancelado': 'Horário liberado.', 'Confirmado': 'Atendimento reaberto.' }[status]);
+  loadAgenda(true);
+}
+
+function openFree(barberId, time) {
+  const b = barberBy(barberId);
+  openModal(`
+    <p class="text-gold font-semibold">${esc(longDate(adm.date))}, ${time}</p>
+    <h3 class="font-display text-3xl font-semibold mb-4">${esc(b.short)}, unidade ${esc(b.unit)}</h3>
+    <div class="flex gap-2 mb-4"><button id="fx-t1" class="chip sel" onclick="fxMode('book')">Encaixar cliente</button><button id="fx-t2" class="chip" onclick="fxMode('block')">Bloquear horário</button></div>
+    <div id="fx-book" class="space-y-3">
+      <div><label class="label" for="fx-name">Nome do cliente</label><input id="fx-name" class="field"></div>
+      <div><label class="label" for="fx-phone">WhatsApp (opcional)</label><input id="fx-phone" type="tel" class="field"></div>
+      <div><label class="label" for="fx-svc">Serviço</label><select id="fx-svc" class="field">${CFG.services.map(s => `<option value="${s.id}">${esc(s.name)} (${s.vipOnly ? 'VIP' : money(s.price)})</option>`).join('')}</select></div>
+      <button id="fx-go1" class="btn btn-gold w-full" onclick="fxSave('book','${barberId}','${time}')">Encaixar às ${time}</button>
+    </div>
+    <div id="fx-block" class="space-y-3" hidden>
+      <div><label class="label" for="fx-note">Motivo</label><input id="fx-note" class="field" placeholder="Almoço, folga, compromisso…"></div>
+      <div><label class="label" for="fx-dur">Por quanto tempo</label><select id="fx-dur" class="field"><option value="30">30 minutos</option><option value="60">1 hora</option><option value="90">1 hora e meia</option><option value="rest">Até o fim do dia</option></select></div>
+      <button id="fx-go2" class="btn btn-gold w-full" onclick="fxSave('block','${barberId}','${time}')">Bloquear a partir das ${time}</button>
+    </div>`);
+}
+
+function fxMode(m) {
+  $('#fx-book').hidden = m !== 'book'; $('#fx-block').hidden = m !== 'block';
+  $('#fx-t1').classList.toggle('sel', m === 'book'); $('#fx-t2').classList.toggle('sel', m === 'block');
+}
+
+async function fxSave(type, barberId, time) {
+  const p = { type, barberId, time, date: adm.date };
+  if (type === 'book') { p.clientName = $('#fx-name').value; p.phone = $('#fx-phone').value; p.serviceId = $('#fx-svc').value; if (!p.clientName.trim()) return toast('Informe o nome do cliente.'); }
+  else { p.note = $('#fx-note').value.trim() || 'Bloqueio'; p.duration = $('#fx-dur').value; }
+  const btn = $(type === 'book' ? '#fx-go1' : '#fx-go2'); busy(btn, true, 'Salvando');
+  const r = await api('staffCreate', p);
+  busy(btn, false);
+  if (r.status !== 'success') return toast(r.message);
+  closeModal(); toast(type === 'book' ? 'Cliente encaixado.' : 'Horário bloqueado.');
+  loadAgenda(true);
+}
+
+/* ---------- caixa do dia (master) ---------- */
+function renderCash() {
+  const data = adm.data; if (!data) return;
+  const methods = CFG.paymentMethods.concat(['VIP', 'Cortesia']);
+  const all = data.bookings.filter(b => b.origin !== 'Bloqueio');
+  const fin = data.finance || [];
+  const sumBy = (list, m) => list.filter(b => b.payment === m).reduce((a, b) => a + b.charged, 0);
+  const cols = CFG.paymentMethods;
+
+  let grand = Object.fromEntries(cols.map(m => [m, 0]));
+  const unitBlocks = CFG.units.map(u => {
+    const barbers = CFG.barbers.filter(b => b.unit === u.name);
+    const rows = barbers.map(b => {
+      const mine = all.filter(x => x.barberId === b.id);
+      const done = mine.filter(x => x.status === 'Concluído');
+      return { b, done, open: mine.filter(x => x.status === 'Confirmado'), missed: mine.filter(x => x.status === 'Faltou'), total: done.reduce((a, x) => a + x.charged, 0) };
+    });
+    const vip = fin.filter(f => f.unit === u.name);
+    const unitDone = rows.flatMap(r => r.done);
+    const unitTotal = rows.reduce((a, r) => a + r.total, 0) + vip.reduce((a, f) => a + f.amount, 0);
+    cols.forEach(m => grand[m] += sumBy(unitDone, m) + vip.filter(f => f.method === m).reduce((a, f) => a + f.amount, 0));
+    return `<div class="rounded-2xl bg-panel border border-line p-4">
+      <div class="flex items-baseline justify-between mb-3"><h3 class="font-display text-2xl font-semibold">${esc(u.name)}</h3><p class="font-display text-2xl font-semibold text-gold num">${money(unitTotal)}</p></div>
+      <div class="scroll-x"><table class="tbl"><thead><tr><th>Profissional</th><th>Fechados</th>${cols.map(m => `<th>${m}</th>`).join('')}<th>Total</th></tr></thead><tbody>
+        ${rows.map(r => `<tr><td>${esc(r.b.short)}${r.open.length ? ` <span class="text-amber-300 text-xs">${r.open.length} em aberto</span>` : ''}${r.missed.length ? ` <span class="text-red-300 text-xs">${r.missed.length} falta${r.missed.length > 1 ? 's' : ''}</span>` : ''}</td><td>${r.done.length}</td>${cols.map(m => `<td>${money(sumBy(r.done, m))}</td>`).join('')}<td>${money(r.total)}</td></tr>`).join('')}
+        ${vip.length ? `<tr><td>Clube VIP (${vip.length})</td><td></td>${cols.map(m => `<td>${money(vip.filter(f => f.method === m).reduce((a, f) => a + f.amount, 0))}</td>`).join('')}<td>${money(vip.reduce((a, f) => a + f.amount, 0))}</td></tr>` : ''}
+      </tbody></table></div></div>`;
+  });
+
+  const open = all.filter(b => b.status === 'Confirmado');
+  const openValue = open.reduce((a, b) => a + b.expected, 0);
+  const total = Object.values(grand).reduce((a, v) => a + v, 0);
+  const vipVisits = all.filter(b => b.status === 'Concluído' && b.vipService).length;
+  const courtesy = all.filter(b => b.payment === 'Cortesia').length;
+
+  $('#cash-body').innerHTML = `
+    <div class="rounded-2xl border border-gold/50 bg-gold/5 p-5">
+      <p class="text-sm text-mute">Total recebido no dia, todas as unidades</p>
+      <p class="font-display text-5xl font-bold num">${money(total)}</p>
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">${cols.map(m => `<div><p class="text-xs text-mute">${m}</p><p class="font-semibold num">${money(grand[m])}</p></div>`).join('')}</div>
+      <p class="text-xs text-mute mt-4">Confira o Dinheiro com a gaveta e os cartões com o extrato da maquininha.${vipVisits ? ` ${vipVisits} atendimento${vipVisits > 1 ? 's' : ''} do VIP (sem cobrança).` : ''}${courtesy ? ` ${courtesy} cortesia${courtesy > 1 ? 's' : ''}.` : ''}</p>
+    </div>
+    ${open.length ? `<div class="rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm"><i class="fa-solid fa-circle-exclamation text-amber-300"></i> ${open.length} atendimento${open.length > 1 ? 's' : ''} ainda sem fechamento (${money(openValue)} previstos). O caixa só fica certo depois de fechar todos na agenda.</div>` : ''}
+    ${unitBlocks.join('')}`;
+}
+
+/* ---------- clientes (master) ---------- */
+const CL_FILTERS = [
+  { k: 'all', l: 'Todos', f: () => true },
+  { k: 'vip', l: 'VIP em dia', f: c => c.vipActive },
+  { k: 'pending', l: 'VIP aguardando pagamento', f: c => c.plan === 'VIP - Aguardando Pagamento' },
+  { k: 'expired', l: 'VIP vencido', f: c => c.plan === 'Assinante VIP' && !c.vipActive },
+  { k: 'away', l: 'Sumidos há 30+ dias', f: c => c.lastVisit && (Date.now() - fromYmd(c.lastVisit)) / 86400000 >= 30 },
+  { k: 'never', l: 'Cadastrados que nunca vieram', f: c => !c.visits },
+  { k: 'bday', l: 'Aniversariantes do mês', f: c => c.birthDate && Number(c.birthDate.slice(5, 7)) === new Date().getMonth() + 1 },
+  { k: 'ref', l: 'Indicaram amigos', f: c => c.referrals > 0 },
+  { k: 'refd', l: 'Vieram por indicação', f: c => !!c.referredBy },
+  { k: 'mkt', l: 'Aceitam ofertas', f: c => c.marketing }
+];
+
+async function loadClients() {
+  $('#cl-list').innerHTML = `<p class="text-mute">Carregando clientes…</p>`;
+  const r = await api('adminClients');
+  if (r.status !== 'success') { $('#cl-list').innerHTML = `<p class="text-red-300">${esc(r.message)}</p>`; return; }
+  adm.clients = r.clients;
+  renderClients();
+}
+
+function filteredClients() {
+  const f = CL_FILTERS.find(x => x.k === adm.cfilter).f;
+  const q = adm.q.trim().toLowerCase();
+  return (adm.clients || []).filter(f).filter(c => !q || [c.name, c.phone, c.neighborhood, c.email, c.refCode].join(' ').toLowerCase().includes(q))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function renderClients() {
+  $('#cl-filters').innerHTML = CL_FILTERS.map(f => `<button class="chip ${adm.cfilter === f.k ? 'sel' : ''}" onclick="adm.cfilter='${f.k}';renderClients()">${f.l}</button>`).join('');
+  const list = filteredClients();
+  $('#cl-count').textContent = `${list.length} ${list.length === 1 ? 'cliente' : 'clientes'}`;
+  $('#cl-list').innerHTML = list.map(c => {
+    const badge = c.vipActive ? `<span class="text-gold text-sm"><i class="fa-solid fa-crown"></i> VIP até ${br(c.vipUntil) || 'sem data'}</span>`
+      : c.plan === 'VIP - Aguardando Pagamento' ? `<span class="text-amber-300 text-sm">Aguardando pagamento do VIP</span>`
+      : c.plan === 'Assinante VIP' ? `<span class="text-red-300 text-sm">VIP vencido em ${br(c.vipUntil)}</span>` : '';
+    const ref = [c.referrals ? `indicou ${c.referrals}` : '', c.referredBy ? `indicado por ${esc(firstName(c.referredBy))}` : ''].filter(Boolean).join(', ');
+    const phone = phoneIntl(c.phone);
+    return `<div class="rounded-2xl bg-panel border border-line p-4 flex flex-wrap items-center gap-3">
+      <div class="flex-1 min-w-[200px]">
+        <p class="font-semibold text-lg">${esc(c.name)} ${c.marketing ? '' : '<span class="text-xs text-mute font-normal">(não aceita ofertas)</span>'}</p>
+        ${badge}
+        <p class="text-sm text-mute">${esc(c.neighborhood || 'Bairro não informado')}, ${c.visits} ${c.visits === 1 ? 'visita' : 'visitas'}${c.lastVisit ? `, última em ${br(c.lastVisit)}` : ''}${c.spent ? `, ${money(c.spent)} gastos` : ''}${c.birthDate ? `, aniversário ${br(c.birthDate).slice(0, 5)}` : ''}</p>
+        ${ref ? `<p class="text-sm text-gold"><i class="fa-solid fa-user-plus"></i> ${ref}</p>` : ''}
+      </div>
+      <div class="flex gap-2">
+        ${phone ? `<a class="btn btn-ghost !p-2.5" target="_blank" rel="noopener" href="${esc(wa(`Olá, ${firstName(c.name)}! Aqui é da ${CFG.shopName}.`, phone))}" aria-label="WhatsApp de ${esc(c.name)}"><i class="fa-brands fa-whatsapp text-green-400"></i></a>` : ''}
+        <button class="btn btn-ghost !py-2 !px-3 text-sm" onclick="openVip('${esc(c.email)}')">${c.vipActive ? 'Renovar VIP' : 'Receber VIP'}</button>
+      </div></div>`;
+  }).join('') || `<p class="text-mute">Nenhum cliente nesse filtro.</p>`;
+}
+
+function openVip(email) {
+  const c = adm.clients.find(x => x.email === email);
+  const days = CFG.vipDays || 30;
+  openModal(`<h3 class="font-display text-3xl font-semibold leading-tight">${c.vipActive ? 'Renovar' : 'Receber'} VIP de ${esc(firstName(c.name))}</h3>
+    <p class="text-mute mt-1 mb-4">${c.vipActive ? `Soma ${days} dias ao vencimento atual (${br(c.vipUntil)}).` : `Vale ${days} dias a partir de hoje.`}</p>
+    <div class="space-y-4">
+      <div><p class="label">Forma de pagamento</p><div id="vip-methods" class="flex flex-wrap gap-2">${CFG.paymentMethods.map(m => `<button class="chip" data-m="${m}" onclick="document.querySelectorAll('#vip-methods .chip').forEach(x=>x.classList.toggle('sel',x.dataset.m==='${m}'));$('#vip-go').disabled=false">${m}</button>`).join('')}</div></div>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="label" for="vip-amount">Valor (R$)</label><input id="vip-amount" type="number" step="0.01" min="0" inputmode="decimal" class="field num" value="${Number(CFG.vipPrice).toFixed(2)}"></div>
+        <div><label class="label" for="vip-unit">Unidade</label><select id="vip-unit" class="field">${CFG.units.map(u => `<option>${esc(u.name)}</option>`).join('')}</select></div>
+      </div>
+      <button id="vip-go" class="btn btn-gold w-full" disabled onclick="saveVip('${esc(email)}')">Registrar pagamento</button>
+    </div>`);
+}
+
+async function saveVip(email) {
+  const sel = document.querySelector('#vip-methods .chip.sel');
+  const btn = $('#vip-go'); busy(btn, true, 'Registrando');
+  const r = await api('adminActivateVip', { email, payment: sel?.dataset.m, amount: $('#vip-amount').value, unit: $('#vip-unit').value });
+  busy(btn, false);
+  if (r.status !== 'success') return toast(r.message);
+  const c = adm.clients.find(x => x.email === email);
+  c.plan = 'Assinante VIP'; c.vipActive = true; c.vipUntil = r.vipUntil;
+  closeModal();
+  toast(`VIP de ${firstName(c.name)} ativo até ${br(r.vipUntil)}.`);
+  renderClients();
+}
+
+function exportCsv() {
+  const list = filteredClients();
+  if (!list.length) return toast('Nenhum cliente para exportar nesse filtro.');
+  const cols = [['Nome', 'name'], ['WhatsApp', 'phone'], ['E-mail', 'email'], ['Nascimento', c => br(c.birthDate)], ['Estado civil', 'maritalStatus'], ['Bairro', 'neighborhood'], ['Plano', 'plan'], ['VIP até', c => br(c.vipUntil)], ['Aceita ofertas', c => c.marketing ? 'Sim' : 'Não'], ['Visitas', 'visits'], ['Última visita', c => br(c.lastVisit)], ['Total gasto', c => String(c.spent).replace('.', ',')], ['Código indicação', 'refCode'], ['Indicado por', 'referredBy'], ['Indicações feitas', 'referrals'], ['Cliente desde', c => br(c.createdAt)]];
+  const cell = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const rows = [cols.map(c => c[0]).join(';')].concat(list.map(c => cols.map(([, k]) => cell(typeof k === 'function' ? k(c) : c[k])).join(';')));
+  const blob = new Blob(['\ufeff' + rows.join('\n')], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `clientes-${adm.cfilter}-${ymd(new Date())}.csv`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+boot();
+</script>
+</body>
+</html>

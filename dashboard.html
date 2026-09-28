@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#141416">
+<meta name="robots" content="noindex">
+<title>Dashboard · Dom Rodrigues</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
+<script>
+tailwind.config = { theme: { extend: {
+  fontFamily: { sans: ['Barlow', 'system-ui', 'sans-serif'], display: ['"Barlow Condensed"', 'Barlow', 'sans-serif'] },
+  colors: { ink: '#141416', panel: '#1c1c21', line: '#2d2d35', gold: '#d4af37', cream: '#ece7dc', mute: '#8f8a80' }
+} } };
+</script>
+<style>
+  html, body { background: #141416; color: #ece7dc; }
+  body { font-family: 'Barlow', system-ui, sans-serif; min-height: 100vh; padding-bottom: env(safe-area-inset-bottom); }
+  :focus-visible { outline: 2px solid #d4af37; outline-offset: 2px; }
+  input, select { color-scheme: dark; }
+  .field { background: #1c1c21; border: 1px solid #2d2d35; border-radius: 10px; padding: 8px 10px; font-size: 15px; color: #ece7dc; }
+  .chip { white-space: nowrap; border: 1px solid #2d2d35; border-radius: 999px; padding: 6px 13px; font-size: 14px; color: #cfc9bd; }
+  .chip.sel { background: #d4af37; border-color: #d4af37; color: #141416; font-weight: 600; }
+  .btn { display: inline-flex; align-items: center; gap: 8px; border-radius: 10px; font-weight: 600; padding: 8px 13px; border: 1px solid #2d2d35; font-size: 14px; }
+  .btn:hover { border-color: #d4af37; }
+  .num { font-variant-numeric: tabular-nums; }
+  .panel { background: #1c1c21; border: 1px solid #2d2d35; border-radius: 16px; padding: 18px; }
+  .h2 { font-family: 'Barlow Condensed', sans-serif; font-size: 26px; font-weight: 600; line-height: 1.1; }
+  .note { font-size: 13px; color: #8f8a80; }
+  .up { color: #7fc48d; } .down { color: #e07a70; } .flat { color: #8f8a80; }
+  .tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .tbl th { text-align: right; font-weight: 500; color: #8f8a80; padding: 6px 10px; border-bottom: 1px solid #2d2d35; white-space: nowrap; }
+  .tbl td { text-align: right; padding: 9px 10px; border-bottom: 1px solid #222228; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .tbl th:first-child, .tbl td:first-child { text-align: left; }
+  .scroll-x { overflow-x: auto; }
+  .bar { height: 6px; border-radius: 3px; background: #2d2d35; overflow: hidden; }
+  .bar > i { display: block; height: 100%; background: #d4af37; }
+  .heat { display: grid; gap: 3px; font-size: 12px; }
+  .heat div { border-radius: 5px; min-height: 30px; display: flex; align-items: center; justify-content: center; font-variant-numeric: tabular-nums; }
+  /* A régua de faturamento no topo é a peça que dá o tom: número grande, condensado, com o comparativo logo ao lado */
+  .hero-num { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: clamp(48px, 9vw, 84px); line-height: .9; letter-spacing: -.01em; }
+</style>
+</head>
+<body>
+<div class="max-w-7xl mx-auto px-4 pt-5 pb-16">
+
+  <header class="flex flex-wrap items-center justify-between gap-3 mb-5">
+    <div class="flex items-center gap-2"><i class="fa-solid fa-crown text-gold"></i><span class="font-display text-2xl font-semibold">Dashboard Dom Rodrigues</span></div>
+    <div class="flex items-center gap-2">
+      <button class="btn" onclick="load()"><i class="fa-solid fa-rotate"></i> Atualizar</button>
+      <button class="btn" onclick="exportCsv()"><i class="fa-solid fa-file-arrow-down"></i> Exportar período</button>
+      <a class="btn" href="index.html"><i class="fa-regular fa-calendar"></i> Agenda</a>
+    </div>
+  </header>
+
+  <div id="gate" class="panel text-center py-12 hidden"></div>
+
+  <main id="app" class="hidden">
+    <!-- Filtros -->
+    <div class="flex flex-wrap items-center gap-2 mb-2" id="periods"></div>
+    <div class="flex flex-wrap items-center gap-2 mb-6">
+      <span id="custom" class="flex items-center gap-2 hidden">
+        <input id="f-from" type="date" class="field" onchange="setCustom()"> <span class="note">até</span> <input id="f-to" type="date" class="field" onchange="setCustom()">
+      </span>
+      <select id="f-unit" class="field" onchange="st.unit=this.value;fillBarbers();render()"></select>
+      <select id="f-barber" class="field" onchange="st.barber=this.value;render()"></select>
+      <span id="range-label" class="note ml-1"></span>
+    </div>
+
+    <div id="alerts" class="space-y-2 mb-5"></div>
+
+    <!-- Faturamento -->
+    <section class="panel mb-5">
+      <div class="flex flex-wrap items-end gap-x-8 gap-y-3">
+        <div>
+          <p class="note">Faturamento no período</p>
+          <p id="hero" class="hero-num num"></p>
+          <p id="hero-sub" class="note mt-2"></p>
+        </div>
+        <div id="hero-split" class="flex flex-wrap gap-x-8 gap-y-2 pb-1"></div>
+      </div>
+      <div class="mt-5" style="height:260px"><canvas id="ch-daily" aria-label="Faturamento por dia"></canvas></div>
+    </section>
+
+    <div id="kpis" class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5"></div>
+
+    <!-- Produtividade -->
+    <section class="panel mb-5">
+      <h2 class="h2">Produtividade por profissional</h2>
+      <p class="note mb-3">Fidelização: parte dos clientes atendidos no período que já tinham cortado antes com o mesmo profissional. R$ por hora: faturamento dividido pelas horas de agenda aberta.</p>
+      <div class="scroll-x"><table class="tbl" id="t-barbers"></table></div>
+    </section>
+
+    <div class="grid lg:grid-cols-2 gap-5 mb-5">
+      <section class="panel">
+        <h2 class="h2">Formas de pagamento</h2>
+        <p class="note mb-3">Taxas conforme <code>paymentFees</code> no Codigo.gs. Ajuste para as do seu contrato.</p>
+        <div class="grid sm:grid-cols-5 gap-4 items-center">
+          <div class="sm:col-span-2" style="height:180px"><canvas id="ch-pay" aria-label="Mix de pagamentos"></canvas></div>
+          <div class="sm:col-span-3 scroll-x"><table class="tbl" id="t-pay"></table></div>
+        </div>
+      </section>
+      <section class="panel">
+        <h2 class="h2">Serviços</h2>
+        <p class="note mb-3">Atendimentos fechados no período.</p>
+        <div class="scroll-x"><table class="tbl" id="t-svc"></table></div>
+      </section>
+    </div>
+
+    <section class="panel mb-5">
+      <h2 class="h2">Quando a procura acontece</h2>
+      <p class="note mb-3">Atendimentos marcados por dia da semana e hora de início. Use para escala da equipe e para promoções nos horários fracos.</p>
+      <div class="scroll-x"><div id="heat" class="heat min-w-[560px]"></div></div>
+    </section>
+
+    <!-- Clientes -->
+    <div class="grid lg:grid-cols-3 gap-5 mb-5">
+      <section class="panel">
+        <h2 class="h2">Saúde da base</h2>
+        <p class="note mb-3">Situação hoje, pela última visita de cada cliente (todas as unidades).</p>
+        <div id="base"></div>
+      </section>
+      <section class="panel">
+        <h2 class="h2">Quem veio no período</h2>
+        <div id="mix"></div>
+      </section>
+      <section class="panel">
+        <h2 class="h2">Clube VIP</h2>
+        <div id="vip"></div>
+      </section>
+    </div>
+
+    <section class="panel mb-5">
+      <h2 class="h2">Melhores clientes do período</h2>
+      <p class="note mb-3">Por valor pago. Use para ações de relacionamento e para convidar ao Clube VIP.</p>
+      <div class="scroll-x"><table class="tbl" id="t-top"></table></div>
+    </section>
+
+    <section class="panel mb-5">
+      <h2 class="h2">Programa de indicação</h2>
+      <p class="note mb-3">O amigo ganha o desconto no cadastro; quem indicou só ganha quando o amigo é atendido. Retorno: quanto os indicados pagaram para cada R$ 1 de desconto dado.</p>
+      <div id="ref"></div>
+    </section>
+
+    <p class="note">Base de dados: planilha do Google. Receita de atendimentos conta só os fechados (status Concluído). VIP conta na data do pagamento.</p>
+  </main>
+</div>
+
+<script>
+/* Mesma URL do index.html */
+const API_URL = "https://script.google.com/macros/s/AKfycbzVFg5ppLnxh5H0tClwkCkSWsq0AywznsOT_wUCRWaCF3MY_xwryaK2-V8me720aH7zBA/exec";
+
+const session = JSON.parse(localStorage.getItem('dr_session') || 'null');
+let D = null;                      // dados brutos
+let st = { period: '30d', from: '', to: '', unit: '', barber: '' };
+let charts = {};
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const pad = n => String(n).padStart(2, '0');
+const ymd = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const fromYmd = s => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
+const addDays = (s, n) => { const d = fromYmd(s); d.setDate(d.getDate() + n); return ymd(d); };
+const diffDays = (a, b) => Math.round((fromYmd(b) - fromYmd(a)) / 86400000);
+const br = s => s ? s.split('-').reverse().join('/') : '';
+const brShort = s => s ? s.slice(8, 10) + '/' + s.slice(5, 7) : '';
+const money = n => Number(n || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+const money0 = n => Number(n || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
+const pct = n => isFinite(n) ? (n * 100).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + '%' : '–';
+const intf = n => Number(n || 0).toLocaleString('pt-BR');
+const t2m = t => { const [h, m] = String(t).split(':').map(Number); return h * 60 + (m || 0); };
+const sum = (a, f) => a.reduce((s, x) => s + (f ? f(x) : x), 0);
+const firstName = n => String(n || '').trim().split(' ')[0];
+const WDS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+const MF = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+const keyOf = b => b.e || b.ph || String(b.n || '').trim().toLowerCase();
+
+Chart.defaults.color = '#8f8a80';
+Chart.defaults.font.family = 'Barlow, system-ui, sans-serif';
+Chart.defaults.borderColor = '#26262d';
+
+async function api(action, params = {}) {
+  try {
+    const res = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action, token: session?.token, ...params }) });
+    return await res.json();
+  } catch (e) { return { status: 'error', message: 'Sem conexão com o servidor.' }; }
+}
+
+function gate(msg) {
+  $('#app').classList.add('hidden');
+  const g = $('#gate'); g.classList.remove('hidden');
+  g.innerHTML = `<p class="h2 mb-2">${msg}</p><a class="btn inline-flex mt-3" href="index.html">Entrar pelo app</a>`;
+}
+
+async function load() {
+  if (!session?.token) return gate('Entre no app com um acesso master para ver o dashboard.');
+  if (session.user?.role !== 'admin') return gate('Este dashboard é exclusivo do master.');
+  $('#gate').classList.add('hidden');
+  $('#app').classList.remove('hidden');
+  $('#hero').textContent = '…';
+  const r = await api('adminDashboard');
+  if (r.status !== 'success') return gate(esc(r.message || 'Não foi possível carregar.'));
+  D = r;
+  if (!$('#f-unit').options.length) {
+    $('#f-unit').innerHTML = `<option value="">Todas as unidades</option>` + D.config.units.map(u => `<option>${esc(u.name)}</option>`).join('');
+    fillBarbers();
+  }
+  renderPeriods();
+  render();
+}
+
+function fillBarbers() {
+  const list = D.config.barbers.filter(b => !st.unit || b.unit === st.unit);
+  if (st.barber && !list.some(b => b.id === st.barber)) st.barber = '';
+  $('#f-barber').innerHTML = `<option value="">Todos os profissionais</option>` + list.map(b => `<option value="${b.id}" ${st.barber === b.id ? 'selected' : ''}>${esc(b.short)}</option>`).join('');
+}
+
+/* ---------- período ---------- */
+const PERIODS = [['today', 'Hoje'], ['7d', '7 dias'], ['30d', '30 dias'], ['month', 'Este mês'], ['lastmonth', 'Mês passado'], ['90d', '90 dias'], ['year', 'Este ano'], ['custom', 'Escolher datas']];
+
+function range() {
+  const t = D.today;
+  const d = fromYmd(t);
+  switch (st.period) {
+    case 'today': return [t, t];
+    case '7d': return [addDays(t, -6), t];
+    case '30d': return [addDays(t, -29), t];
+    case '90d': return [addDays(t, -89), t];
+    case 'month': return [ymd(new Date(d.getFullYear(), d.getMonth(), 1)), t];
+    case 'lastmonth': return [ymd(new Date(d.getFullYear(), d.getMonth() - 1, 1)), ymd(new Date(d.getFullYear(), d.getMonth(), 0))];
+    case 'year': return [ymd(new Date(d.getFullYear(), 0, 1)), t];
+    default: return [st.from || addDays(t, -29), st.to || t];
+  }
+}
+function prevRange([a, b]) {
+  if (st.period === 'month' || st.period === 'lastmonth') { // mês contra o mesmo trecho do mês anterior
+    const A = fromYmd(a), B = fromYmd(b);
+    const pa = new Date(A.getFullYear(), A.getMonth() - 1, 1);
+    const lastPrev = new Date(A.getFullYear(), A.getMonth(), 0).getDate();
+    return [ymd(pa), ymd(new Date(pa.getFullYear(), pa.getMonth(), Math.min(B.getDate(), lastPrev)))];
+  }
+  const n = diffDays(a, b) + 1;
+  return [addDays(a, -n), addDays(a, -1)];
+}
+
+function renderPeriods() {
+  $('#periods').innerHTML = PERIODS.map(([k, l]) => `<button class="chip ${st.period === k ? 'sel' : ''}" onclick="setPeriod('${k}')">${l}</button>`).join('');
+  $('#custom').classList.toggle('hidden', st.period !== 'custom');
+}
+function setPeriod(k) {
+  st.period = k;
+  if (k === 'custom' && !st.from) { const [a, b] = range(); st.from = a; st.to = b; $('#f-from').value = a; $('#f-to').value = b; }
+  renderPeriods(); render();
+}
+function setCustom() { st.from = $('#f-from').value; st.to = $('#f-to').value; if (st.from && st.to && st.from <= st.to) render(); }
+
+/* ---------- cálculo ---------- */
+const barberRate = id => D.config.barbers.find(b => b.id === id)?.commissionRate || 0;
+const feeOf = m => D.config.paymentFees[m] || 0;
+const visibleBarbers = () => D.config.barbers.filter(b => (!st.unit || b.unit === st.unit) && (!st.barber || b.id === st.barber));
+const inScope = b => (!st.unit || b.u === st.unit) && (!st.barber || b.bid === st.barber);
+const isVipVisit = b => /clube vip/i.test(b.s);
+
+function openDays(a, b) {
+  const out = [];
+  for (let d = a; d <= b; d = addDays(d, 1)) if (!D.config.closedWeekdays.includes(fromYmd(d).getDay())) out.push(d);
+  return out;
+}
+
+function metrics([a, b]) {
+  const inRange = D.bookings.filter(x => x.d >= a && x.d <= b && inScope(x));
+  const list = inRange.filter(x => x.o !== 'Bloqueio');
+  const blocks = inRange.filter(x => x.o === 'Bloqueio');
+  const done = list.filter(x => x.st === 'Concluído');
+  const missed = list.filter(x => x.st === 'Faltou');
+  const pending = list.filter(x => x.st === 'Confirmado' && x.d < D.today);
+  const paid = done.filter(x => !isVipVisit(x) && x.pay !== 'Cortesia');
+
+  const vipFin = st.barber ? [] : D.finance.filter(f => f.type === 'VIP' && f.d >= a && f.d <= b && (!st.unit || f.u === st.unit));
+  const revServ = sum(done, x => x.rev);
+  const revVip = sum(vipFin, f => f.a);
+  const revenue = revServ + revVip;
+  const fees = sum(done, x => x.rev * feeOf(x.pay)) + sum(vipFin, f => f.a * feeOf(f.pay));
+  const commission = sum(done, x => x.rev * barberRate(x.bid));
+
+  const days = openDays(a, b);
+  const vis = visibleBarbers();
+  const capacity = days.length * vis.length * (t2m(D.config.closeTime) - t2m(D.config.openTime)) - sum(blocks, x => x.dur);
+  const booked = sum(list, x => x.dur);
+
+  return {
+    a, b, list, done, missed, pending, paid, vipFin, revServ, revVip, revenue, fees, net: revenue - fees, commission,
+    ticket: paid.length ? sum(paid, x => x.rev) / paid.length : 0,
+    noShow: (done.length + missed.length) ? missed.length / (done.length + missed.length) : NaN,
+    occupancy: capacity > 0 ? booked / capacity : NaN,
+    capacityH: Math.max(0, capacity) / 60,
+    clients: new Set(done.map(keyOf)).size,
+    newUsers: D.users.filter(u => u.c >= a && u.c <= b).length,
+    discounts: sum(done, x => x.disc),
+    pendingValue: sum(pending, x => x.exp)
+  };
+}
+
+function delta(cur, prev, { rate = false, inverse = false } = {}) {
+  if (!isFinite(cur) || !isFinite(prev)) return '<span class="flat">sem comparação</span>';
+  let txt, dir;
+  if (rate) { const d = (cur - prev) * 100; dir = Math.abs(d) < 0.05 ? 0 : Math.sign(d); txt = (d > 0 ? '+' : '') + d.toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + ' p.p.'; }
+  else { if (!prev) return cur ? '<span class="flat">novo</span>' : '<span class="flat">igual</span>'; const d = (cur - prev) / prev; dir = Math.abs(d) < 0.005 ? 0 : Math.sign(d); txt = (d > 0 ? '+' : '') + pct(d); }
+  const good = inverse ? -dir : dir;
+  const icon = dir > 0 ? 'fa-arrow-up' : dir < 0 ? 'fa-arrow-down' : 'fa-minus';
+  return `<span class="${good > 0 ? 'up' : good < 0 ? 'down' : 'flat'}"><i class="fa-solid ${icon} text-[10px]"></i> ${txt}</span>`;
+}
+
+/* ---------- render ---------- */
+function render() {
+  if (!D) return;
+  const R = range(), P = prevRange(R);
+  const m = metrics(R), p = metrics(P);
+  $('#range-label').textContent = `${br(R[0])} a ${br(R[1])}, comparado com ${br(P[0])} a ${br(P[1])}`;
+
+  // alertas de qualidade de dado
+  const alerts = [];
+  if (m.pending.length) alerts.push(`${intf(m.pending.length)} atendimentos passados ainda estão como "Confirmado" (${money(m.pendingValue)} previstos). Eles não entram no faturamento até serem fechados na agenda.`);
+  const noPay = m.done.filter(x => x.pay === 'Não informado').length;
+  if (noPay) alerts.push(`${intf(noPay)} atendimentos foram fechados antes da forma de pagamento existir no sistema e aparecem como "Não informado".`);
+  $('#alerts').innerHTML = alerts.map(a => `<div class="rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm"><i class="fa-solid fa-circle-exclamation text-amber-300"></i> ${a}</div>`).join('');
+
+  // faturamento
+  $('#hero').textContent = money0(m.revenue);
+  $('#hero-sub').innerHTML = `${delta(m.revenue, p.revenue)} contra o período anterior (${money0(p.revenue)})`;
+  $('#hero-split').innerHTML = [
+    ['Atendimentos', money0(m.revServ)], ['Clube VIP', st.barber ? '–' : money0(m.revVip)],
+    ['Taxas de cartão', '−' + money0(m.fees)], ['Receita líquida', money0(m.net)],
+    ...(m.commission ? [['Comissões estimadas', '−' + money0(m.commission)], ['Após comissões', money0(m.net - m.commission)]] : [])
+  ].map(([l, v]) => `<div><p class="note">${l}</p><p class="font-display text-2xl font-semibold num">${v}</p></div>`).join('');
+  drawDaily(m);
+
+  // KPIs
+  const kpi = (label, value, d, hint) => `<div class="panel !p-4"><p class="note">${label}</p><p class="font-display text-3xl font-semibold num leading-tight">${value}</p><p class="text-xs mt-1">${d}</p>${hint ? `<p class="text-xs text-mute mt-1">${hint}</p>` : ''}</div>`;
+  $('#kpis').innerHTML =
+    kpi('Atendimentos fechados', intf(m.done.length), delta(m.done.length, p.done.length), `${intf(m.done.filter(isVipVisit).length)} do VIP`) +
+    kpi('Ticket médio', money(m.ticket), delta(m.ticket, p.ticket), 'atendimentos pagos, sem VIP') +
+    kpi('Ocupação da agenda', pct(m.occupancy), delta(m.occupancy, p.occupancy, { rate: true }), 'minutos marcados sobre agenda aberta') +
+    kpi('Faltas', pct(m.noShow), delta(m.noShow, p.noShow, { rate: true, inverse: true }), `${intf(m.missed.length)} clientes não vieram`) +
+    kpi('Clientes atendidos', intf(m.clients), delta(m.clients, p.clients), 'pessoas diferentes') +
+    kpi('Novos cadastros', intf(m.newUsers), delta(m.newUsers, p.newUsers), 'no app, todas as unidades') +
+    kpi('Descontos de vouchers', money(m.discounts), delta(m.discounts, p.discounts, { inverse: true }), m.revServ ? pct(m.discounts / (m.revServ + m.discounts)) + ' do bruto' : '') +
+    kpi('Receita por hora aberta', money(m.capacityH ? m.revServ / m.capacityH : 0), delta(m.capacityH ? m.revServ / m.capacityH : 0, p.capacityH ? p.revServ / p.capacityH : 0), 'produtividade da cadeira');
+
+  renderBarbers(m, R);
+  renderPayments(m);
+  renderServices(m);
+  renderHeat(m);
+  renderClients(m, R);
+  renderReferral(m, R);
+}
+
+function drawDaily(m) {
+  const days = []; for (let d = m.a; d <= m.b; d = addDays(d, 1)) days.push(d);
+  const byMonth = days.length > 120;
+  const keys = byMonth ? [...new Set(days.map(d => d.slice(0, 7)))] : days;
+  const kOf = d => byMonth ? d.slice(0, 7) : d;
+  const serv = Object.fromEntries(keys.map(k => [k, 0])), vip = { ...serv }, cnt = { ...serv };
+  m.done.forEach(x => { serv[kOf(x.d)] += x.rev; cnt[kOf(x.d)]++; });
+  m.vipFin.forEach(f => { vip[kOf(f.d)] += f.a; });
+  const labels = keys.map(k => byMonth ? MF[Number(k.slice(5, 7)) - 1].slice(0, 3) + '/' + k.slice(2, 4) : brShort(k));
+  charts.daily?.destroy();
+  charts.daily = new Chart($('#ch-daily'), {
+    data: { labels, datasets: [
+      { type: 'bar', label: 'Atendimentos (R$)', data: keys.map(k => serv[k]), backgroundColor: '#d4af37', stack: 'r', borderRadius: 3, yAxisID: 'y' },
+      { type: 'bar', label: 'Clube VIP (R$)', data: keys.map(k => vip[k]), backgroundColor: '#7a6420', stack: 'r', borderRadius: 3, yAxisID: 'y' },
+      { type: 'line', label: 'Qtd. atendimentos', data: keys.map(k => cnt[k]), borderColor: '#ece7dc', backgroundColor: '#ece7dc', pointRadius: keys.length > 45 ? 0 : 2, tension: .3, yAxisID: 'y1' }
+    ] },
+    options: {
+      maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { labels: { boxWidth: 10, boxHeight: 10 } }, tooltip: { callbacks: { label: c => c.dataset.yAxisID === 'y' ? `${c.dataset.label.replace(' (R$)', '')}: ${money(c.raw)}` : `${c.dataset.label}: ${c.raw}` } } },
+      scales: { x: { grid: { display: false }, ticks: { maxRotation: 0, autoSkipPadding: 12 } },
+        y: { stacked: true, beginAtZero: true, ticks: { callback: v => money0(v) } },
+        y1: { position: 'right', beginAtZero: true, grid: { display: false }, ticks: { precision: 0 } } }
+    }
+  });
+}
+
+function renderBarbers(m, R) {
+  const days = openDays(R[0], R[1]).length;
+  const dayMin = t2m(D.config.closeTime) - t2m(D.config.openTime);
+  const anyRate = visibleBarbers().some(b => b.commissionRate);
+  const firstWith = {}; // primeira visita concluída de cada cliente com cada barbeiro (todo o histórico)
+  D.bookings.forEach(x => { if (x.st !== 'Concluído') return; const k = x.bid + '|' + keyOf(x); if (!firstWith[k] || x.d < firstWith[k]) firstWith[k] = x.d; });
+
+  const rows = visibleBarbers().map(b => {
+    const mine = m.list.filter(x => x.bid === b.id);
+    const done = mine.filter(x => x.st === 'Concluído'), missed = mine.filter(x => x.st === 'Faltou');
+    const paid = done.filter(x => !isVipVisit(x) && x.pay !== 'Cortesia');
+    const blocked = sum(D.bookings.filter(x => x.o === 'Bloqueio' && x.bid === b.id && x.d >= R[0] && x.d <= R[1]), x => x.dur);
+    const capMin = days * dayMin - blocked;
+    const rev = sum(done, x => x.rev);
+    const clients = [...new Set(done.map(keyOf))];
+    const loyal = clients.filter(k => firstWith[b.id + '|' + k] < R[0]).length;
+    return { b, done: done.length, rev, ticket: paid.length ? sum(paid, x => x.rev) / paid.length : 0,
+      occ: capMin > 0 ? sum(mine, x => x.dur) / capMin : NaN, noShow: (done.length + missed.length) ? missed.length / (done.length + missed.length) : NaN,
+      clients: clients.length, loyal: clients.length ? loyal / clients.length : NaN, perHour: capMin > 0 ? rev / (capMin / 60) : 0, comm: rev * (b.commissionRate || 0) };
+  }).sort((x, y) => y.rev - x.rev);
+  const max = Math.max(1, ...rows.map(r => r.rev));
+  $('#t-barbers').innerHTML = `<thead><tr><th>Profissional</th><th>Atend.</th><th>Faturamento</th><th>Ticket</th><th>Ocupação</th><th>Faltas</th><th>Clientes</th><th>Fidelização</th><th>R$ por hora</th>${anyRate ? '<th>Comissão</th>' : ''}</tr></thead><tbody>` +
+    rows.map(r => `<tr><td><b>${esc(r.b.short)}</b> <span class="note">${esc(r.b.unit)}</span><div class="bar mt-1 w-32"><i style="width:${r.rev / max * 100}%"></i></div></td>
+      <td>${intf(r.done)}</td><td>${money(r.rev)}</td><td>${money(r.ticket)}</td><td>${pct(r.occ)}</td><td>${pct(r.noShow)}</td><td>${intf(r.clients)}</td><td>${pct(r.loyal)}</td><td>${money(r.perHour)}</td>${anyRate ? `<td>${money(r.comm)}</td>` : ''}</tr>`).join('') + '</tbody>';
+}
+
+function renderPayments(m) {
+  const map = {};
+  const add = (k, v) => { map[k] = map[k] || { v: 0, n: 0 }; map[k].v += v; map[k].n++; };
+  m.done.filter(x => !isVipVisit(x)).forEach(x => add(x.pay || 'Não informado', x.rev));
+  m.vipFin.forEach(f => add(f.pay || 'Não informado', f.a));
+  const rows = Object.entries(map).sort((a, b) => b[1].v - a[1].v);
+  const total = sum(rows, r => r[1].v);
+  const colors = ['#d4af37', '#ece7dc', '#8a7a4a', '#5c9b6b', '#6b6b75', '#c2554d'];
+  charts.pay?.destroy();
+  charts.pay = new Chart($('#ch-pay'), { type: 'doughnut', data: { labels: rows.map(r => r[0]), datasets: [{ data: rows.map(r => r[1].v), backgroundColor: colors, borderColor: '#1c1c21', borderWidth: 2 }] },
+    options: { maintainAspectRatio: false, cutout: '62%', plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => `${c.label}: ${money(c.raw)}` } } } } });
+  $('#t-pay').innerHTML = `<thead><tr><th>Forma</th><th>Qtd.</th><th>Valor</th><th>%</th><th>Taxa</th><th>Líquido</th></tr></thead><tbody>` +
+    rows.map(([k, r], i) => `<tr><td><i class="fa-solid fa-circle text-[9px]" style="color:${colors[i % colors.length]}"></i> ${esc(k)}</td><td>${intf(r.n)}</td><td>${money(r.v)}</td><td>${pct(total ? r.v / total : 0)}</td><td>${money(r.v * feeOf(k))}</td><td>${money(r.v * (1 - feeOf(k)))}</td></tr>`).join('') +
+    (rows.length ? '' : '<tr><td colspan="6" class="note">Nenhum pagamento no período.</td></tr>') + '</tbody>';
+}
+
+function renderServices(m) {
+  const map = {};
+  m.done.forEach(x => { map[x.s] = map[x.s] || { n: 0, v: 0, d: 0 }; map[x.s].n++; map[x.s].v += x.rev; map[x.s].d += x.dur; });
+  const rows = Object.entries(map).sort((a, b) => b[1].n - a[1].n);
+  const n = sum(rows, r => r[1].n);
+  $('#t-svc').innerHTML = `<thead><tr><th>Serviço</th><th>Qtd.</th><th>Mix</th><th>Receita</th><th>R$ por hora</th></tr></thead><tbody>` +
+    rows.map(([k, r]) => `<tr><td>${esc(k)}</td><td>${intf(r.n)}</td><td>${pct(n ? r.n / n : 0)}</td><td>${money(r.v)}</td><td>${r.d ? money(r.v / (r.d / 60)) : '–'}</td></tr>`).join('') +
+    (rows.length ? '' : '<tr><td colspan="5" class="note">Nenhum atendimento fechado no período.</td></tr>') + '</tbody>';
+}
+
+function renderHeat(m) {
+  const open = t2m(D.config.openTime), close = t2m(D.config.closeTime);
+  const hours = []; for (let h = Math.floor(open / 60); h * 60 < close; h++) hours.push(h);
+  const wds = [1, 2, 3, 4, 5, 6, 0].filter(w => !D.config.closedWeekdays.includes(w));
+  const grid = {}; let max = 0;
+  m.list.forEach(x => { const k = fromYmd(x.d).getDay() + '|' + Math.floor(t2m(x.t) / 60); grid[k] = (grid[k] || 0) + 1; max = Math.max(max, grid[k]); });
+  let h = `<div></div>` + hours.map(x => `<div class="note">${x}h</div>`).join('');
+  wds.forEach(w => {
+    h += `<div class="note justify-start">${WDS[w]}</div>`;
+    hours.forEach(x => { const v = grid[w + '|' + x] || 0; const a = max ? v / max : 0;
+      h += `<div title="${WDS[w]} ${x}h: ${v} atendimentos" style="background:rgba(212,175,55,${v ? .12 + a * .78 : .03});color:${a > .55 ? '#141416' : '#cfc9bd'}">${v || ''}</div>`; });
+  });
+  const el = $('#heat'); el.style.gridTemplateColumns = `44px repeat(${hours.length}, 1fr)`; el.innerHTML = h;
+}
+
+function renderClients(m, R) {
+  const users = Object.fromEntries(D.users.map(u => [u.e, u]));
+  // última visita de cada cliente (todo o histórico, todas as unidades)
+  const last = {}, visitsAll = {};
+  D.bookings.forEach(x => {
+    if (x.o === 'Bloqueio' || !(x.st === 'Concluído' || (x.st === 'Confirmado' && x.d < D.today))) return;
+    const k = keyOf(x); if (!k) return;
+    if (!last[k] || x.d > last[k]) last[k] = x.d;
+    (visitsAll[k] = visitsAll[k] || []).push(x.d);
+  });
+  const ages = Object.values(last).map(d => diffDays(d, D.today));
+  const active = ages.filter(a => a <= 45).length, risk = ages.filter(a => a > 45 && a <= 90).length, lost = ages.filter(a => a > 90).length;
+  const never = D.users.filter(u => !last[u.e]).length;
+  const gaps = [];
+  Object.values(visitsAll).forEach(ds => { const s = [...new Set(ds)].sort(); for (let i = 1; i < s.length; i++) gaps.push(diffDays(s[i - 1], s[i])); });
+  gaps.sort((a, b) => a - b);
+  const median = gaps.length ? gaps[Math.floor(gaps.length / 2)] : 0;
+  const totalBase = active + risk + lost;
+  const row = (l, v, c, hint) => `<div class="py-2 border-b border-line last:border-0"><div class="flex justify-between"><span>${l}</span><b class="num">${intf(v)}</b></div><div class="bar mt-1"><i style="width:${totalBase ? v / totalBase * 100 : 0}%;background:${c}"></i></div>${hint ? `<p class="text-xs text-mute mt-1">${hint}</p>` : ''}</div>`;
+  $('#base').innerHTML =
+    row('Ativos', active, '#5c9b6b', 'vieram nos últimos 45 dias') +
+    row('Em risco', risk, '#e0a340', 'de 46 a 90 dias sem vir: hora de mandar mensagem') +
+    row('Perdidos', lost, '#c2554d', 'mais de 90 dias') +
+    `<p class="text-sm mt-3">${intf(never)} cadastrados nunca vieram.</p>` +
+    (median ? `<p class="text-sm mt-1">Intervalo típico entre visitas: <b>${median} dias</b>. Um lembrete perto desse dia tende a trazer o cliente de volta.</p>` : '');
+
+  // quem veio no período
+  const served = [...new Set(m.done.map(keyOf))];
+  const firstEver = {};
+  D.bookings.forEach(x => { if (x.st !== 'Concluído') return; const k = keyOf(x); if (!firstEver[k] || x.d < firstEver[k]) firstEver[k] = x.d; });
+  const firstTime = served.filter(k => firstEver[k] >= R[0]).length;
+  const app = m.done.filter(x => x.o === 'App').length, counter = m.done.filter(x => x.o === 'Balcão').length;
+  const hoods = {};
+  served.forEach(k => { const h = users[k]?.h || 'Não informado'; hoods[h] = (hoods[h] || 0) + 1; });
+  const topHoods = Object.entries(hoods).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  $('#mix').innerHTML = `
+    <div class="grid grid-cols-2 gap-3 mt-2">
+      <div><p class="note">Primeira visita</p><p class="font-display text-3xl font-semibold num">${intf(firstTime)}</p></div>
+      <div><p class="note">Voltaram</p><p class="font-display text-3xl font-semibold num">${intf(served.length - firstTime)}</p></div>
+      <div><p class="note">Marcaram pelo app</p><p class="font-display text-3xl font-semibold num">${pct((app + counter) ? app / (app + counter) : NaN)}</p></div>
+      <div><p class="note">Encaixe no balcão</p><p class="font-display text-3xl font-semibold num">${intf(counter)}</p></div>
+    </div>
+    <p class="note mt-4 mb-1">Bairros de quem veio</p>
+    ${topHoods.map(([h, v]) => `<div class="flex justify-between text-sm py-1"><span>${esc(h)}</span><span class="num">${intf(v)}</span></div>`).join('') || '<p class="note">Sem dados.</p>'}`;
+
+  // VIP
+  const vips = D.users.filter(u => u.vip);
+  const expiring = vips.filter(u => u.vu && diffDays(D.today, u.vu) <= 7);
+  const expired = D.users.filter(u => u.plan === 'Assinante VIP' && !u.vip);
+  const pendingVip = D.users.filter(u => u.plan === 'VIP - Aguardando Pagamento');
+  const vipVisits = m.done.filter(isVipVisit).length;
+  const vipCount = new Set(m.done.filter(isVipVisit).map(keyOf)).size;
+  $('#vip').innerHTML = `
+    <div class="grid grid-cols-2 gap-3 mt-2">
+      <div><p class="note">Assinantes ativos</p><p class="font-display text-3xl font-semibold num">${intf(vips.length)}</p></div>
+      <div><p class="note">Receita recorrente</p><p class="font-display text-3xl font-semibold num">${money0(vips.length * D.config.vipPrice)}</p><p class="text-xs text-mute">por mês, se todos renovarem</p></div>
+      <div><p class="note">Vencem em 7 dias</p><p class="font-display text-3xl font-semibold num">${intf(expiring.length)}</p></div>
+      <div><p class="note">Vencidos</p><p class="font-display text-3xl font-semibold num">${intf(expired.length)}</p></div>
+    </div>
+    <p class="text-sm mt-4">${vipCount ? `No período, cada VIP veio em média <b>${(vipVisits / vipCount).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}</b> vezes: custo de ${money(D.config.vipPrice / Math.max(1, vipVisits / vipCount))} por visita para a casa (em ${st.period === 'month' || st.period === 'lastmonth' || st.period === '30d' ? '30 dias' : 'o período'}).` : 'Nenhuma visita VIP no período.'}</p>
+    ${pendingVip.length ? `<p class="text-sm text-amber-300 mt-2">${intf(pendingVip.length)} pediram VIP no cadastro e ainda não pagaram.</p>` : ''}
+    ${expiring.length ? `<p class="note mt-2">Vencendo: ${expiring.slice(0, 6).map(u => esc(firstName(u.n)) + ' (' + brShort(u.vu) + ')').join(', ')}</p>` : ''}`;
+
+  // top clientes
+  const agg = {};
+  m.done.forEach(x => { const k = keyOf(x); const a = agg[k] || (agg[k] = { n: x.n, ph: x.ph || users[x.e]?.ph, v: 0, c: 0, last: '' }); a.v += x.rev; a.c++; if (x.d > a.last) a.last = x.d; });
+  const top = Object.entries(agg).sort((a, b) => b[1].v - a[1].v).slice(0, 10);
+  $('#t-top').innerHTML = `<thead><tr><th>Cliente</th><th>Visitas</th><th>Pagou</th><th>Última visita</th><th>Plano</th><th></th></tr></thead><tbody>` +
+    top.map(([k, a]) => { const u = users[k]; const ph = a.ph ? (a.ph.length <= 11 ? '55' + a.ph : a.ph) : '';
+      return `<tr><td>${esc(a.n || k)}</td><td>${intf(a.c)}</td><td>${money(a.v)}</td><td>${br(a.last)}</td><td>${u ? (u.vip ? '<span class="text-gold">VIP</span>' : esc(u.plan)) : '<span class="note">sem cadastro</span>'}</td>
+      <td>${ph ? `<a href="https://wa.me/${ph}" target="_blank" rel="noopener" aria-label="WhatsApp"><i class="fa-brands fa-whatsapp text-green-400"></i></a>` : ''}</td></tr>`; }).join('') +
+    (top.length ? '' : '<tr><td colspan="6" class="note">Nenhum atendimento fechado no período.</td></tr>') + '</tbody>';
+}
+
+function renderReferral(m, R) {
+  const referredUsers = D.users.filter(u => u.rb);
+  const signups = referredUsers.filter(u => u.c >= R[0] && u.c <= R[1]);
+  const rewards = D.vouchers.filter(v => v.kind === 'Indicação' && v.created >= R[0] && v.created <= R[1]);
+  const refSet = new Set(referredUsers.map(u => u.e));
+  const refRevenue = sum(m.done.filter(x => refSet.has(x.e)), x => x.rev);
+  const discounts = sum(m.done.filter(x => x.v), x => x.disc);
+  const issued = D.vouchers.filter(v => v.created >= R[0] && v.created <= R[1]);
+  const used = D.vouchers.filter(v => v.status === 'Usado' && v.created >= R[0] && v.created <= R[1]);
+  const expired = D.vouchers.filter(v => v.status === 'Expirado').length;
+  const names = Object.fromEntries(D.users.map(u => [u.e, u.n]));
+  const byRef = {};
+  D.vouchers.filter(v => v.kind === 'Indicação').forEach(v => byRef[v.owner] = (byRef[v.owner] || 0) + 1);
+  const leaders = Object.entries(byRef).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  const big = (l, v, h) => `<div><p class="note">${l}</p><p class="font-display text-3xl font-semibold num">${v}</p>${h ? `<p class="text-xs text-mute">${h}</p>` : ''}</div>`;
+  $('#ref').innerHTML = `
+    <div class="grid grid-cols-2 md:grid-cols-6 gap-4">
+      ${big('Cadastros indicados', intf(signups.length))}
+      ${big('Viraram clientes', intf(rewards.length), signups.length ? pct(rewards.length / signups.length) + ' de conversão' : '')}
+      ${big('Vouchers usados', intf(used.length), issued.length ? `de ${intf(issued.length)} emitidos` : '')}
+      ${big('Desconto dado', money0(discounts))}
+      ${big('Receita dos indicados', money0(refRevenue), 'no período')}
+      ${big('Retorno', discounts ? (refRevenue / discounts).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + 'x' : '–', 'receita ÷ desconto')}
+    </div>
+    <div class="grid md:grid-cols-2 gap-6 mt-5">
+      <div><p class="note mb-1">Quem mais indica (todo o histórico)</p>${leaders.map(([e, n]) => `<div class="flex justify-between text-sm py-1 border-b border-line"><span>${esc(names[e] || e)}</span><span class="num">${n} ${n === 1 ? 'amigo atendido' : 'amigos atendidos'}</span></div>`).join('') || '<p class="note">Ninguém ainda. Divulgue o código no balcão e no pós-atendimento.</p>'}</div>
+      <div class="text-sm text-mute">${expired ? `${intf(expired)} vouchers venceram sem uso. ` : ''}Se a conversão estiver baixa, o amigo se cadastra mas não marca: vale lembrar pelo WhatsApp que o desconto está guardado.</div>
+    </div>`;
+}
+
+/* ---------- exportação ---------- */
+function exportCsv() {
+  if (!D) return;
+  const [a, b] = range();
+  const list = D.bookings.filter(x => x.d >= a && x.d <= b && inScope(x) && x.o !== 'Bloqueio').sort((x, y) => (x.d + x.t).localeCompare(y.d + y.t));
+  const barberName = id => D.config.barbers.find(x => x.id === id)?.short || '';
+  const cols = [['Data', x => br(x.d)], ['Hora', x => x.t], ['Unidade', x => x.u], ['Profissional', x => barberName(x.bid)], ['Serviço', x => x.s], ['Status', x => x.st],
+    ['Preço tabela', x => x.p], ['Desconto', x => x.disc], ['Valor recebido', x => x.rev], ['Forma de pagamento', x => x.pay], ['Taxa estimada', x => (x.rev * feeOf(x.pay)).toFixed(2)],
+    ['Cliente', x => x.n], ['E-mail', x => x.e], ['WhatsApp', x => x.ph], ['Origem', x => x.o], ['Voucher', x => x.v], ['Duração (min)', x => x.dur]];
+  const cell = v => `"${String(v ?? '').replace('.', typeof v === 'number' ? ',' : '.').replace(/"/g, '""')}"`;
+  const rows = [cols.map(c => c[0]).join(';')].concat(list.map(x => cols.map(([, f]) => cell(f(x))).join(';')));
+  const blob = new Blob(['\ufeff' + rows.join('\n')], { type: 'text/csv;charset=utf-8' });
+  const el = document.createElement('a');
+  el.href = URL.createObjectURL(blob); el.download = `atendimentos-${a}-a-${b}.csv`; el.click(); URL.revokeObjectURL(el.href);
+}
+
+load();
+</script>
+</body>
+</html>
