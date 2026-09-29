@@ -4,9 +4,15 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#141416">
-<title>Dom Rodrigues · Agendamento</title>
+<title>Dom Rodrigues</title>
 <meta name="description" content="Agende seu corte na Dom Rodrigues, unidades Curicica e Camorim.">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>👑</text></svg>">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Dom Rodrigues">
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -22,8 +28,29 @@ tailwind.config = {
 <style>
   :root { --row: 46px; }
   html, body { background: #141416; color: #ece7dc; }
-  body { font-family: 'Barlow', system-ui, sans-serif; min-height: 100vh; padding-bottom: env(safe-area-inset-bottom); }
+  body { font-family: 'Barlow', system-ui, sans-serif; min-height: 100vh; min-height: 100dvh; padding-top: env(safe-area-inset-top); -webkit-tap-highlight-color: transparent; overscroll-behavior-y: none; }
+  button, .btn, .tab { -webkit-user-select: none; user-select: none; touch-action: manipulation; }
+  /* Troca de tela: uma entrada curta, só para mostrar que a tela mudou */
+  [data-screen].on { animation: enter .22s ease-out; }
+  @keyframes enter { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  /* Barra de abas do cliente: o botão de agendar é a coroa do app, maior e dourado, no centro */
+  #tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; background: rgba(20,20,22,.96); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-top: 1px solid #2d2d35; padding-bottom: env(safe-area-inset-bottom); }
+  #tabbar .row { max-width: 28rem; margin: 0 auto; display: grid; grid-template-columns: repeat(4, 1fr); align-items: end; }
+  .tab { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 9px 0 8px; font-size: 11px; font-weight: 500; color: #8f8a80; }
+  .tab i { font-size: 19px; }
+  .tab.on { color: #d4af37; }
+  .tab-book { margin-top: -20px; }
+  .tab-book span.dot { width: 54px; height: 54px; border-radius: 18px; background: #d4af37; color: #141416; display: flex; align-items: center; justify-content: center; font-size: 21px; box-shadow: 0 6px 18px rgba(212,175,55,.28); }
+  .tab-book.on { color: #ece7dc; }
+  .with-tabs { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
+  .row-link { width: 100%; display: flex; align-items: center; gap: 14px; padding: 15px 4px; border-bottom: 1px solid #222228; text-align: left; }
+  .row-link i.lead { width: 22px; text-align: center; color: #d4af37; }
+  .row-link .chev { margin-left: auto; color: #4a4a52; font-size: 13px; }
+  .code-input { letter-spacing: .5em; text-align: center; font-size: 26px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  body.has-tabs #toast { bottom: calc(92px + env(safe-area-inset-bottom)); }
+  #offline { position: fixed; top: env(safe-area-inset-top); left: 0; right: 0; z-index: 70; }
   .font-display { font-family: 'Barlow Condensed', 'Barlow', sans-serif; letter-spacing: .01em; }
+  [hidden] { display: none !important; }
   [data-screen] { display: none; }
   [data-screen].on { display: block; }
   :focus-visible { outline: 2px solid #d4af37; outline-offset: 2px; }
@@ -77,7 +104,7 @@ tailwind.config = {
   .tbl td { text-align: right; padding: 8px; border-bottom: 1px solid #222228; font-variant-numeric: tabular-nums; white-space: nowrap; }
   .tbl th:first-child, .tbl td:first-child { text-align: left; }
   .tbl tr.sum td { font-weight: 600; border-bottom: 1px solid #2d2d35; }
-  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 </style>
 </head>
 <body>
@@ -103,7 +130,7 @@ tailwind.config = {
       <div class="space-y-4">
         <div><label class="label" for="login-email">E-mail</label><input id="login-email" type="email" autocomplete="email" class="field" placeholder="seu@email.com"></div>
         <div>
-          <div class="flex justify-between items-baseline"><label class="label" for="login-password">Senha</label><button onclick="show('forgot')" class="text-sm text-gold">Esqueci a senha</button></div>
+          <div class="flex justify-between items-baseline"><label class="label" for="login-password">Senha</label><button onclick="openForgot()" class="text-sm text-gold">Esqueci a senha</button></div>
           <div class="relative"><input id="login-password" type="password" autocomplete="current-password" class="field pr-11" placeholder="Sua senha" onkeydown="if(event.key==='Enter')doLogin()"><button type="button" onclick="togglePass('login-password',this)" class="absolute right-3 top-1/2 -translate-y-1/2 text-mute p-1" aria-label="Mostrar senha"><i class="fa-solid fa-eye"></i></button></div>
         </div>
         <button id="btn-login" onclick="doLogin()" class="btn btn-gold w-full">Entrar</button>
@@ -119,13 +146,24 @@ tailwind.config = {
   <div class="max-w-md mx-auto px-6 py-6">
     <button onclick="show('login')" class="text-mute mb-6"><i class="fa-solid fa-arrow-left"></i> Voltar</button>
     <h2 class="font-display text-4xl font-bold mb-2">Nova senha</h2>
-    <p class="text-mute mb-6">Confirme seu e-mail e a data de nascimento do cadastro. Barbeiros: peçam a senha nova ao gestor.</p>
-    <div class="space-y-4">
-      <div><label class="label" for="fg-email">E-mail</label><input id="fg-email" type="email" class="field"></div>
-      <div><label class="label" for="fg-birth">Data de nascimento</label><input id="fg-birth" type="date" class="field"></div>
-      <div><label class="label" for="fg-pass">Nova senha</label><input id="fg-pass" type="password" class="field" placeholder="Mínimo 6 caracteres"></div>
-      <button id="btn-forgot" onclick="doReset()" class="btn btn-gold w-full">Salvar nova senha</button>
+    <div id="fg-step1">
+      <p class="text-mute mb-6">Digite o e-mail do cadastro. Vamos mandar um código de 6 números para você criar a senha nova.</p>
+      <div class="space-y-4">
+        <div><label class="label" for="fg-email">E-mail</label><input id="fg-email" type="email" autocomplete="email" class="field" onkeydown="if(event.key==='Enter')sendResetCode()"></div>
+        <button id="btn-fg-send" onclick="sendResetCode()" class="btn btn-gold w-full">Enviar código</button>
+      </div>
     </div>
+    <div id="fg-step2" hidden>
+      <p class="text-mute mb-6">Enviamos o código para <b id="fg-email-shown" class="text-cream"></b>. Ele vale 15 minutos. Não chegou? Veja no spam.</p>
+      <div class="space-y-4">
+        <div><label class="label" for="fg-code">Código</label><input id="fg-code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" class="field code-input" placeholder="000000"></div>
+        <div><label class="label" for="fg-pass">Nova senha</label>
+          <div class="relative"><input id="fg-pass" type="password" autocomplete="new-password" class="field pr-11" placeholder="Mínimo 6 caracteres" onkeydown="if(event.key==='Enter')confirmResetCode()"><button type="button" onclick="togglePass('fg-pass',this)" class="absolute right-3 top-1/2 -translate-y-1/2 text-mute p-1" aria-label="Mostrar senha"><i class="fa-solid fa-eye"></i></button></div></div>
+        <button id="btn-fg-confirm" onclick="confirmResetCode()" class="btn btn-gold w-full">Salvar e entrar</button>
+        <button onclick="fgStep(1)" class="btn btn-ghost w-full">Mandar outro código</button>
+      </div>
+    </div>
+    <p class="text-xs text-mute mt-8">Barbeiros e gestores: se o código não chegar, peça uma senha provisória ao responsável pelo sistema.</p>
   </div>
 </section>
 
@@ -161,7 +199,7 @@ tailwind.config = {
         <div class="relative"><input id="rg-pass" type="password" class="field pr-11" placeholder="Mínimo 6 caracteres" autocomplete="new-password"><button type="button" onclick="togglePass('rg-pass',this)" class="absolute right-3 top-1/2 -translate-y-1/2 text-mute p-1" aria-label="Mostrar senha"><i class="fa-solid fa-eye"></i></button></div></div>
 
       <label class="flex gap-3 items-start text-sm cursor-pointer"><input id="rg-mkt" type="checkbox" class="mt-1 w-4 h-4 accent-[#d4af37]"><span>Quero receber promoções, novidades e mimo de aniversário pelo WhatsApp e e-mail.</span></label>
-      <p class="text-xs text-mute">Seus dados ficam só com a Dom Rodrigues e são usados para seus agendamentos e, se você autorizar acima, para ofertas. Você pode pedir a exclusão a qualquer momento pelo WhatsApp.</p>
+      <p class="text-xs text-mute">Seus dados ficam só com a Dom Rodrigues e são usados para seus agendamentos e, se você autorizar acima, para ofertas. Você pode pedir a exclusão a qualquer momento no app, em Conta. <a href="privacidade.html" class="text-gold underline">Política de privacidade</a>.</p>
 
       <button id="btn-register" onclick="doRegister()" class="btn btn-gold w-full">Criar conta</button>
     </div>
@@ -170,17 +208,21 @@ tailwind.config = {
 
 <!-- ============ HOME DO CLIENTE ============ -->
 <section data-screen="home">
-  <div class="max-w-md mx-auto px-5 pt-5 pb-16">
+  <div class="max-w-md mx-auto px-5 pt-5 with-tabs">
     <header class="flex items-center justify-between mb-6">
       <div class="flex items-center gap-2 text-gold"><i class="fa-solid fa-crown"></i><span class="font-display text-xl font-semibold text-cream">Dom Rodrigues</span></div>
       <div class="flex items-center gap-1">
         <button id="btn-to-admin" hidden onclick="goStaff()" class="btn btn-ghost !py-2 !px-3 text-sm">Painel master</button>
-        <button onclick="openPassword()" class="p-2 text-mute" aria-label="Trocar senha"><i class="fa-solid fa-key"></i></button>
-        <button onclick="logout()" class="p-2 text-mute" aria-label="Sair"><i class="fa-solid fa-right-from-bracket"></i></button>
       </div>
     </header>
 
     <h2 class="font-display text-4xl font-bold leading-tight" id="home-hello"></h2>
+    <div id="install-card" hidden class="mt-4 rounded-2xl border border-line bg-panel p-4 flex items-center gap-3">
+      <img src="icons/icon-192.png" alt="" class="w-11 h-11 rounded-xl">
+      <div class="flex-1"><p class="font-semibold">Instale o app</p><p class="text-sm text-mute">Abre direto na sua agenda.</p></div>
+      <button onclick="installApp()" class="btn btn-gold !py-2 !px-3 text-sm">Instalar</button>
+      <button onclick="dismissInstall()" class="p-1 text-mute" aria-label="Agora não"><i class="fa-solid fa-xmark"></i></button>
+    </div>
     <div id="vip-card" class="mt-4"></div>
     <div id="my-vouchers" class="mt-4 space-y-3"></div>
 
@@ -189,14 +231,49 @@ tailwind.config = {
     <h3 class="font-display text-2xl font-semibold mt-9 mb-3">Próximos horários</h3>
     <div id="my-upcoming" class="space-y-3"></div>
 
-    <div id="refer-card" hidden class="rounded-2xl bg-panel border border-line p-5 mt-9"></div>
+    <button id="refer-teaser" hidden onclick="goTab('refer')" class="w-full text-left rounded-2xl bg-panel border border-line p-4 mt-9 flex items-center gap-3">
+      <i class="fa-solid fa-gift text-gold text-xl"></i>
+      <span class="flex-1"><b class="block">Indique e ganhe</b><span id="refer-teaser-sub" class="text-sm text-mute"></span></span>
+      <i class="fa-solid fa-chevron-right text-mute text-sm"></i>
+    </button>
 
     <details id="my-history-wrap" class="mt-8" hidden>
       <summary class="cursor-pointer text-mute">Histórico</summary>
       <div id="my-history" class="mt-3 space-y-2"></div>
     </details>
 
-    <a data-wa-shop target="_blank" rel="noopener" class="btn btn-ghost w-full mt-10"><i class="fa-brands fa-whatsapp text-green-400"></i> Falar com a barbearia</a>
+  </div>
+</section>
+
+<!-- ============ INDIQUE E GANHE ============ -->
+<section data-screen="refer">
+  <div class="max-w-md mx-auto px-5 pt-6 with-tabs">
+    <h2 class="font-display text-4xl font-bold mb-1">Indique e ganhe</h2>
+    <p id="refer-intro" class="text-mute mb-6"></p>
+    <div id="refer-card" class="rounded-2xl bg-panel border border-line p-5"></div>
+    <h3 class="font-display text-2xl font-semibold mt-9 mb-3">Seus descontos</h3>
+    <div id="wallet-list" class="space-y-3"></div>
+    <h3 class="font-display text-2xl font-semibold mt-9 mb-2">Como funciona</h3>
+    <ol id="refer-how" class="space-y-3 text-sm text-mute"></ol>
+  </div>
+</section>
+
+<!-- ============ CONTA ============ -->
+<section data-screen="account">
+  <div class="max-w-md mx-auto px-5 pt-6 with-tabs">
+    <h2 class="font-display text-4xl font-bold mb-1" id="acc-name"></h2>
+    <p class="text-mute" id="acc-email"></p>
+    <p class="text-mute text-sm" id="acc-plan"></p>
+    <div class="mt-6">
+      <button id="acc-install" hidden onclick="installApp()" class="row-link"><i class="fa-solid fa-mobile-screen lead"></i><span>Instalar o app no celular</span><i class="fa-solid fa-chevron-right chev"></i></button>
+      <a data-wa-shop target="_blank" rel="noopener" class="row-link"><i class="fa-brands fa-whatsapp lead"></i><span>Falar com a barbearia</span><i class="fa-solid fa-chevron-right chev"></i></a>
+      <button onclick="openPassword()" class="row-link"><i class="fa-solid fa-key lead"></i><span>Trocar senha</span><i class="fa-solid fa-chevron-right chev"></i></button>
+      <button onclick="doLogoutOthers()" class="row-link"><i class="fa-solid fa-user-shield lead"></i><span>Sair dos outros aparelhos</span><i class="fa-solid fa-chevron-right chev"></i></button>
+      <a href="privacidade.html" class="row-link"><i class="fa-solid fa-shield-halved lead"></i><span>Privacidade e seus dados</span><i class="fa-solid fa-chevron-right chev"></i></a>
+      <button onclick="logout()" class="row-link"><i class="fa-solid fa-right-from-bracket lead"></i><span>Sair</span></button>
+    </div>
+    <button onclick="openDeleteAccount()" class="mt-10 text-sm text-red-300/80 underline">Excluir minha conta e meus dados</button>
+    <p class="text-xs text-mute mt-6" id="acc-version">Dom Rodrigues · app v7</p>
   </div>
 </section>
 
@@ -238,10 +315,9 @@ tailwind.config = {
         <p id="st-sub" class="text-sm text-mute"></p>
       </div>
       <div class="flex items-center gap-2">
-        <a id="st-dash" hidden href="dashboard.html" target="_blank" rel="noopener" class="btn btn-gold !py-2 !px-3 text-sm"><i class="fa-solid fa-chart-column"></i> Dashboard completo</a>
+        <a id="st-dash" hidden href="dashboard.html" class="btn btn-gold !py-2 !px-3 text-sm"><i class="fa-solid fa-chart-column"></i> Dashboard completo</a>
         <button id="st-client" hidden onclick="goHome()" class="btn btn-ghost !py-2 !px-3 text-sm">Modo cliente</button>
-        <button onclick="openPassword()" class="p-2 text-mute" aria-label="Trocar senha"><i class="fa-solid fa-key"></i></button>
-        <button onclick="logout()" class="p-2 text-mute" aria-label="Sair"><i class="fa-solid fa-right-from-bracket"></i></button>
+        <button onclick="openStaffAccount()" class="p-2 text-mute" aria-label="Minha conta"><i class="fa-solid fa-circle-user text-xl"></i></button>
       </div>
     </header>
 
@@ -252,15 +328,15 @@ tailwind.config = {
     </nav>
 
     <!-- Barra de data (agenda e caixa) -->
-    <div id="st-datebar" class="flex flex-wrap items-center gap-2 mb-3">
+    <div id="st-datebar" class="flex items-center gap-1.5 sm:gap-2 mb-3">
       <button onclick="admShift(-1)" class="btn btn-ghost !p-2.5" aria-label="Dia anterior"><i class="fa-solid fa-chevron-left"></i></button>
       <label class="relative">
-        <span id="adm-date-label" class="font-display text-2xl font-semibold px-2 cursor-pointer"></span>
+        <span id="adm-date-label" class="font-display text-xl sm:text-2xl font-semibold px-1 sm:px-2 cursor-pointer whitespace-nowrap"></span>
         <input id="adm-date" type="date" class="absolute inset-0 opacity-0 cursor-pointer" onchange="adm.date=this.value;loadAgenda()">
       </label>
       <button onclick="admShift(1)" class="btn btn-ghost !p-2.5" aria-label="Próximo dia"><i class="fa-solid fa-chevron-right"></i></button>
       <button onclick="adm.date=ymd(new Date());loadAgenda()" class="btn btn-ghost !py-2 !px-3 text-sm">Hoje</button>
-      <button onclick="loadAgenda()" class="ml-auto text-sm text-gold"><i class="fa-solid fa-rotate"></i> Atualizar</button>
+      <button onclick="loadAgenda()" class="ml-auto text-sm text-gold p-2" aria-label="Atualizar"><i class="fa-solid fa-rotate"></i><span class="hidden sm:inline"> Atualizar</span></button>
     </div>
 
     <!-- Agenda -->
@@ -293,11 +369,22 @@ tailwind.config = {
 <!-- Modal -->
 <div id="modal" class="fixed inset-0 z-50 hidden">
   <div class="absolute inset-0 bg-black/70" onclick="closeModal()"></div>
-  <div class="absolute inset-x-0 bottom-0 sm:inset-auto sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:w-[440px] bg-panel border border-line rounded-t-3xl sm:rounded-3xl p-6 max-h-[90vh] overflow-y-auto" role="dialog" aria-modal="true">
-    <button onclick="closeModal()" class="absolute right-4 top-4 text-mute p-1" aria-label="Fechar"><i class="fa-solid fa-xmark text-lg"></i></button>
+  <div class="absolute inset-x-0 bottom-0 sm:inset-auto sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:w-[440px] bg-panel border border-line rounded-t-3xl sm:rounded-3xl p-6 max-h-[90vh] overflow-y-auto" style="padding-bottom:calc(1.5rem + env(safe-area-inset-bottom))" role="dialog" aria-modal="true">
+    <button id="modal-x" onclick="closeModal()" class="absolute right-4 top-4 text-mute p-1" aria-label="Fechar"><i class="fa-solid fa-xmark text-lg"></i></button>
     <div id="modal-body"></div>
   </div>
 </div>
+
+<nav id="tabbar" hidden aria-label="Navegação">
+  <div class="row">
+    <button class="tab" data-go="home" onclick="goTab('home')"><i class="fa-solid fa-house"></i>Início</button>
+    <button class="tab tab-book" data-go="book" onclick="startBooking()"><span class="dot"><i class="fa-solid fa-scissors"></i></span>Agendar</button>
+    <button class="tab" data-go="refer" onclick="goTab('refer')"><i class="fa-solid fa-gift"></i>Indicar</button>
+    <button class="tab" data-go="account" onclick="goTab('account')"><i class="fa-solid fa-circle-user"></i>Conta</button>
+  </div>
+</nav>
+
+<div id="offline" hidden class="bg-[#3a2a12] text-[#f1d9a0] text-sm text-center py-2 px-4">Sem internet. Assim que voltar, a agenda atualiza.</div>
 
 <div id="toast" role="status" aria-live="polite" class="fixed left-1/2 -translate-x-1/2 bottom-6 z-[60] max-w-sm w-[calc(100%-2rem)] bg-panel border border-gold text-cream px-4 py-3 rounded-xl text-center opacity-0 translate-y-6 pointer-events-none"></div>
 
@@ -339,9 +426,20 @@ const isStaff = () => ['admin', 'barber'].includes(session?.user?.role);
 const isMaster = () => session?.user?.role === 'admin';
 const appLink = () => location.origin + location.pathname;
 
+const TAB_SCREENS = ['home', 'refer', 'account'];
 function show(name) {
   document.querySelectorAll('[data-screen]').forEach(s => s.classList.toggle('on', s.dataset.screen === name));
+  const tabs = TAB_SCREENS.includes(name);
+  $('#tabbar').hidden = !tabs;
+  document.body.classList.toggle('has-tabs', tabs);
+  document.querySelectorAll('#tabbar [data-go]').forEach(b => b.classList.toggle('on', b.dataset.go === name));
   window.scrollTo(0, 0);
+}
+
+function goTab(name) {
+  if (name === 'home') return goHome();
+  if (name === 'refer') { show('refer'); return loadWallet(); }
+  if (name === 'account') return goAccount();
 }
 
 let toastTimer;
@@ -365,8 +463,14 @@ function togglePass(id, btn) {
   btn.innerHTML = `<i class="fa-solid ${i.type === 'password' ? 'fa-eye' : 'fa-eye-slash'}"></i>`;
 }
 
-function openModal(html) { $('#modal-body').innerHTML = html; $('#modal').classList.remove('hidden'); }
-function closeModal() { $('#modal').classList.add('hidden'); }
+let modalLocked = false;
+function openModal(html, locked) {
+  modalLocked = !!locked;
+  $('#modal-body').innerHTML = html;
+  $('#modal-x').hidden = modalLocked;
+  $('#modal').classList.remove('hidden');
+}
+function closeModal(force) { if (modalLocked && force !== true) return; modalLocked = false; $('#modal').classList.add('hidden'); }
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
 
 function saveSession() { localStorage.setItem('dr_session', JSON.stringify(session)); }
@@ -407,7 +511,14 @@ async function boot() {
   show('login');
 }
 
-function routeByRole() { isStaff() ? goStaff() : goHome(); }
+function routeByRole() {
+  const go = new URLSearchParams(location.search).get('go');
+  if (go) history.replaceState(null, '', location.pathname);
+  if (isStaff()) goStaff();
+  else if (go === 'book') startBooking();
+  else goHome();
+  if (session.user.mustChange) openPassword(true);
+}
 
 /* ---------- conta ---------- */
 async function doLogin() {
@@ -459,21 +570,51 @@ async function doRegister() {
   else if (p.wantsVip) toast('Conta criada. Pague no balcão para ativar seu VIP.');
 }
 
-async function doReset() {
-  const btn = $('#btn-forgot'); busy(btn, true);
-  const r = await api('resetPassword', { email: $('#fg-email').value, birthDate: $('#fg-birth').value, newPassword: $('#fg-pass').value });
-  busy(btn, false);
-  toast(r.message);
-  if (r.status === 'success') show('login');
+function fgStep(n) {
+  $('#fg-step1').hidden = n !== 1;
+  $('#fg-step2').hidden = n !== 2;
+  (n === 1 ? $('#fg-email') : $('#fg-code')).focus();
 }
 
-function openPassword() {
-  openModal(`<h3 class="font-display text-3xl font-semibold mb-4">Trocar senha</h3>
+function openForgot() {
+  $('#fg-email').value = $('#login-email').value.trim();
+  $('#fg-code').value = ''; $('#fg-pass').value = '';
+  show('forgot'); fgStep(1);
+}
+
+async function sendResetCode() {
+  const email = $('#fg-email').value.trim();
+  if (!email) return toast('Digite o e-mail do cadastro.');
+  const btn = $('#btn-fg-send'); busy(btn, true, 'Enviando');
+  const r = await api('requestReset', { email });
+  busy(btn, false);
+  if (r.status !== 'success') return toast(r.message);
+  $('#fg-email-shown').textContent = email;
+  fgStep(2);
+  toast(r.message);
+}
+
+async function confirmResetCode() {
+  const code = $('#fg-code').value.replace(/\D/g, ''), newPassword = $('#fg-pass').value;
+  if (code.length !== 6) return toast('O código tem 6 números.');
+  if (newPassword.length < 6) return toast('A nova senha precisa ter pelo menos 6 caracteres.');
+  const btn = $('#btn-fg-confirm'); busy(btn, true, 'Salvando');
+  const r = await api('confirmReset', { email: $('#fg-email').value.trim(), code, newPassword });
+  busy(btn, false);
+  if (r.status !== 'success') return toast(r.message);
+  session = { token: r.token, user: r.user }; saveSession();
+  toast(r.message);
+  routeByRole();
+}
+
+function openPassword(force) {
+  openModal(`<h3 class="font-display text-3xl font-semibold mb-2">${force ? 'Crie sua senha' : 'Trocar senha'}</h3>
+    ${force ? '<p class="text-sm text-mute mb-4">Você entrou com uma senha provisória. Escolha uma senha só sua para continuar.</p>' : '<p class="text-sm text-mute mb-4">Ao trocar, os outros aparelhos conectados na sua conta saem automaticamente.</p>'}
     <div class="space-y-3">
-      <div><label class="label" for="pw-cur">Senha atual</label><input id="pw-cur" type="password" class="field" autocomplete="current-password"></div>
-      <div><label class="label" for="pw-new">Nova senha</label><input id="pw-new" type="password" class="field" placeholder="Mínimo 6 caracteres" autocomplete="new-password"></div>
+      <div><label class="label" for="pw-cur">${force ? 'Senha provisória' : 'Senha atual'}</label><input id="pw-cur" type="password" class="field" autocomplete="current-password"></div>
+      <div><label class="label" for="pw-new">Nova senha</label><input id="pw-new" type="password" class="field" placeholder="Mínimo 6 caracteres" autocomplete="new-password" onkeydown="if(event.key==='Enter')doChangePassword()"></div>
       <button id="pw-go" class="btn btn-gold w-full" onclick="doChangePassword()">Salvar nova senha</button>
-    </div>`);
+    </div>`, force);
 }
 
 async function doChangePassword() {
@@ -481,10 +622,59 @@ async function doChangePassword() {
   const r = await api('changePassword', { currentPassword: $('#pw-cur').value, newPassword: $('#pw-new').value });
   busy(btn, false);
   toast(r.message);
-  if (r.status === 'success') closeModal();
+  if (r.status !== 'success') return;
+  session.token = r.token; session.user.mustChange = false; saveSession();
+  closeModal(true);
+}
+
+async function doLogoutOthers() {
+  if (!confirm('Desconectar sua conta de todos os outros celulares e computadores?')) return;
+  const r = await api('logoutOthers');
+  toast(r.message);
+  if (r.status === 'success') { session.token = r.token; saveSession(); }
+}
+
+function openStaffAccount() {
+  const u = session.user;
+  openModal(`<h3 class="font-display text-3xl font-semibold">${esc(u.name)}</h3>
+    <p class="text-sm text-mute mb-3">${esc(u.email)} · ${isMaster() ? 'Master' : 'Barbeiro'}</p>
+    <button onclick="openPassword()" class="row-link"><i class="fa-solid fa-key lead"></i><span>Trocar senha</span><i class="fa-solid fa-chevron-right chev"></i></button>
+    <button onclick="closeModal();doLogoutOthers()" class="row-link"><i class="fa-solid fa-user-shield lead"></i><span>Sair dos outros aparelhos</span><i class="fa-solid fa-chevron-right chev"></i></button>
+    ${canInstall() ? `<button onclick="closeModal();installApp()" class="row-link"><i class="fa-solid fa-mobile-screen lead"></i><span>Instalar o app no celular</span><i class="fa-solid fa-chevron-right chev"></i></button>` : ''}
+    <button onclick="closeModal();logout()" class="row-link"><i class="fa-solid fa-right-from-bracket lead"></i><span>Sair</span></button>`);
+}
+
+function goAccount() {
+  const u = session.user;
+  show('account');
+  $('#acc-name').textContent = u.name;
+  $('#acc-email').textContent = u.email;
+  $('#acc-plan').textContent = u.vipActive ? `Clube VIP até ${br(u.vipUntil)}` : '';
+  $('#acc-install').hidden = !canInstall();
+}
+
+function openDeleteAccount() {
+  openModal(`<h3 class="font-display text-3xl font-semibold mb-2">Excluir conta</h3>
+    <p class="text-sm text-mute mb-4">Sua conta é encerrada agora e seus dados pessoais (nome, e-mail, WhatsApp, nascimento e bairro) são apagados pela barbearia. Horários marcados são cancelados e descontos guardados são perdidos. Não dá para desfazer.</p>
+    <div class="space-y-3">
+      <div><label class="label" for="del-pass">Digite sua senha para confirmar</label><input id="del-pass" type="password" class="field" autocomplete="current-password"></div>
+      <button id="del-go" class="btn w-full bg-red-900/60 border border-red-400/40 text-red-100" onclick="doDeleteAccount()">Excluir minha conta</button>
+      <button class="btn btn-ghost w-full" onclick="closeModal()">Manter minha conta</button>
+    </div>`);
+}
+
+async function doDeleteAccount() {
+  const btn = $('#del-go'); busy(btn, true, 'Excluindo');
+  const r = await api('requestDeletion', { password: $('#del-pass').value });
+  busy(btn, false);
+  if (r.status !== 'success') return toast(r.message);
+  closeModal(true);
+  session = null; localStorage.removeItem('dr_session');
+  show('login'); toast(r.message);
 }
 
 function logout() {
+  closeModal(true);
   session = null; wallet = null; localStorage.removeItem('dr_session');
   clearInterval(admTimer);
   show('login');
@@ -496,6 +686,7 @@ function goHome() {
   show('home');
   $('#btn-to-admin').hidden = u.role !== 'admin';
   $('#home-hello').textContent = `Olá, ${firstName(u.name)}`;
+  $('#install-card').hidden = !canInstall() || localStorage.getItem('dr_install_dismissed') === '1';
 
   let card;
   if (u.vipActive) {
@@ -512,32 +703,50 @@ function goHome() {
 }
 
 async function loadWallet() {
-  if (!CFG.referral) return;
+  if (!CFG.referral) { $('#refer-card').innerHTML = '<p class="text-mute">O programa de indicação não está ativo no momento.</p>'; return; }
   const r = await api('myWallet');
   if (r.status !== 'success') return;
   wallet = r;
   const avail = r.vouchers.filter(v => v.status === 'Disponível');
   const reserved = r.vouchers.filter(v => v.status === 'Reservado');
-  $('#my-vouchers').innerHTML = avail.map(v => `
+  const ticket = v => `
     <div class="ticket flex items-center gap-4">
       <div class="flex-1"><p class="font-display text-3xl font-semibold text-gold leading-none">${money(v.value)}</p>
       <p class="text-sm text-mute mt-1">${v.kind === 'Indicação' ? 'Prêmio por indicar um amigo' : 'Presente de boas-vindas'}. Válido até ${br(v.expires)}.</p></div>
-      <span class="text-xs text-mute text-right">Aplicado<br>ao agendar</span>
-    </div>`).join('') + (reserved.length ? `<p class="text-sm text-mute">${reserved.length === 1 ? '1 desconto reservado' : reserved.length + ' descontos reservados'} para seu próximo horário.</p>` : '');
+      <span class="text-xs text-mute text-right">${v.status === 'Reservado' ? 'Reservado<br>no próximo horário' : 'Aplicado<br>ao agendar'}</span>
+    </div>`;
+  const reservedNote = reserved.length ? `<p class="text-sm text-mute">${reserved.length === 1 ? '1 desconto reservado' : reserved.length + ' descontos reservados'} para seu próximo horário.</p>` : '';
+  $('#my-vouchers').innerHTML = avail.map(ticket).join('') + reservedNote;
+  $('#wallet-list').innerHTML = r.vouchers.length ? r.vouchers.map(ticket).join('')
+    : `<div class="rounded-2xl border border-dashed border-line p-5 text-mute">Nenhum desconto guardado ainda. Indique um amigo para ganhar o primeiro.</div>`;
 
+  const f = money(CFG.referral.friendValue), g = money(CFG.referral.referrerValue);
   const link = `${appLink()}?ref=${r.refCode}`;
-  const msg = `Bora cortar na ${CFG.shopName}? Cadastra com o meu código ${r.refCode} e ganha ${money(CFG.referral.friendValue)} no primeiro atendimento: ${link}`;
-  const card = $('#refer-card');
-  card.hidden = false;
-  card.innerHTML = `
-    <h3 class="font-display text-2xl font-semibold">Indique e ganhe</h3>
-    <p class="text-sm text-mute mt-1">Seu amigo ganha ${money(CFG.referral.friendValue)} no primeiro atendimento. Quando ele for atendido, você ganha ${money(CFG.referral.referrerValue)}.</p>
-    <p class="font-display text-4xl font-bold tracking-wider text-gold mt-4">${esc(r.refCode)}</p>
-    <div class="grid grid-cols-2 gap-2 mt-4">
+  const msg = `Bora cortar na ${CFG.shopName}? Cadastra com o meu código ${r.refCode} e ganha ${f} no primeiro atendimento: ${link}`;
+  $('#refer-teaser').hidden = false;
+  $('#refer-teaser-sub').textContent = `Seu amigo ganha ${f} e você ganha ${g}.`;
+  $('#refer-intro').textContent = `Seu amigo ganha ${f} no primeiro atendimento. Quando ele for atendido, você ganha ${g}.`;
+  $('#refer-card').innerHTML = `
+    <p class="text-sm text-mute">Seu código</p>
+    <p class="font-display text-5xl font-bold tracking-wider text-gold leading-none mt-1">${esc(r.refCode)}</p>
+    <div class="grid grid-cols-2 gap-2 mt-5">
       <a class="btn btn-gold" target="_blank" rel="noopener" href="${esc(wa(msg, ''))}"><i class="fa-brands fa-whatsapp"></i> Enviar</a>
-      <button class="btn btn-ghost" onclick="copyText('${esc(link)}','Link copiado.')"><i class="fa-regular fa-copy"></i> Copiar link</button>
+      <button class="btn btn-ghost" onclick="shareRef()"><i class="fa-solid fa-share-nodes"></i> Compartilhar</button>
     </div>
     ${r.referred ? `<p class="text-sm text-mute mt-4">${r.referred === 1 ? '1 amigo cadastrado' : r.referred + ' amigos cadastrados'}, ${r.converted} já ${r.converted === 1 ? 'veio' : 'vieram'}.</p>` : ''}`;
+  $('#refer-how').innerHTML = [
+    `Envie seu código ou link para um amigo que ainda não é cliente.`,
+    `Ele se cadastra com o código e ganha ${f} no primeiro atendimento.`,
+    `Quando ele for atendido, você ganha ${g}. O desconto entra sozinho no seu próximo agendamento.`,
+    `Os descontos valem ${CFG.referral.validityDays} dias.`
+  ].map((t, i) => `<li class="flex gap-3"><span class="font-display text-xl text-gold leading-none w-4">${i + 1}</span><span>${t}</span></li>`).join('');
+}
+
+async function shareRef() {
+  const link = `${appLink()}?ref=${wallet.refCode}`;
+  const msg = `Bora cortar na ${CFG.shopName}? Cadastra com o meu código ${wallet.refCode} e ganha ${money(CFG.referral.friendValue)} no primeiro atendimento: ${link}`;
+  if (navigator.share) { try { await navigator.share({ title: CFG.shopName, text: msg }); return; } catch (e) { if (e.name === 'AbortError') return; } }
+  copyText(link, 'Link copiado.');
 }
 
 async function copyText(text, okMsg) {
@@ -760,7 +969,8 @@ function visibleBarbers() {
 async function loadAgenda(silent) {
   $('#adm-date').value = adm.date;
   const today = ymd(new Date());
-  $('#adm-date-label').textContent = (adm.date === today ? 'Hoje, ' : '') + longDate(adm.date);
+  const dd = fromYmd(adm.date);
+  $('#adm-date-label').textContent = (adm.date === today ? 'Hoje, ' : '') + (innerWidth < 640 ? `${WD[dd.getDay()]} ${pad(dd.getDate())}/${pad(dd.getMonth() + 1)}` : longDate(adm.date));
   $('#adm-filters').innerHTML = admFilters().map(f => `<button class="chip ${adm.filter === f.k ? 'sel' : ''}" onclick="adm.filter='${esc(f.k)}';renderAgenda()">${esc(f.l)}</button>`).join('');
   if (!silent) {
     $('#adm-agenda').innerHTML = `<p class="p-6 text-mute">Carregando agenda…</p>`;
@@ -1098,6 +1308,46 @@ function exportCsv() {
   a.click();
   URL.revokeObjectURL(a.href);
 }
+
+/* ---------- app instalável ---------- */
+let installEvt = null;
+const isStandalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const canInstall = () => !isStandalone() && (!!installEvt || isIOS());
+
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault(); installEvt = e;
+  if ($('[data-screen="home"]').classList.contains('on') && localStorage.getItem('dr_install_dismissed') !== '1') $('#install-card').hidden = false;
+});
+window.addEventListener('appinstalled', () => { installEvt = null; $('#install-card').hidden = true; toast('App instalado. Ele já está na sua tela inicial.'); });
+
+async function installApp() {
+  if (installEvt) {
+    installEvt.prompt();
+    const { outcome } = await installEvt.userChoice;
+    installEvt = null;
+    if (outcome === 'accepted') $('#install-card').hidden = true;
+    return;
+  }
+  openModal(`<h3 class="font-display text-3xl font-semibold mb-4">Instalar no iPhone</h3>
+    <ol class="space-y-4">
+      <li class="flex gap-3"><span class="font-display text-2xl text-gold leading-none w-5">1</span><span>No Safari, toque em <b>Compartilhar</b> <i class="fa-solid fa-arrow-up-from-bracket text-gold"></i>, na barra de baixo.</span></li>
+      <li class="flex gap-3"><span class="font-display text-2xl text-gold leading-none w-5">2</span><span>Role e toque em <b>Adicionar à Tela de Início</b> <i class="fa-regular fa-square-plus text-gold"></i>.</span></li>
+      <li class="flex gap-3"><span class="font-display text-2xl text-gold leading-none w-5">3</span><span>Toque em <b>Adicionar</b>. O ícone da Dom Rodrigues aparece junto com seus apps.</span></li>
+    </ol>
+    <button class="btn btn-gold w-full mt-6" onclick="closeModal()">Entendi</button>`);
+}
+
+function dismissInstall() { localStorage.setItem('dr_install_dismissed', '1'); $('#install-card').hidden = true; }
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+}
+
+function netStatus() { $('#offline').hidden = navigator.onLine; }
+window.addEventListener('online', () => { netStatus(); if (!CFG) boot(); });
+window.addEventListener('offline', netStatus);
+netStatus();
 
 boot();
 </script>
